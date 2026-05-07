@@ -1,0 +1,41 @@
+@import "tailwindcss";
+
+/* ─── Design Tokens from Concepto Grafico ─── */
+
+:root {
+  --color-bg-main: #F3F9FF;
+  --color-white: #FFFFFF;
+  --color-primary: #007BFF;
+  --color-primary-hover: #006BE6;
+  --color-secondary: #1E90FF;
+  --color-accent-blue-light: #DCEEFF;
+  --color-accent-blue-pale: #EAF4FF;
+  --color-accent-green: #69E785;
+  --color-accent-orange: #FFA51F;
+  --color-accent-red: #FF5A5F;
+  --color-text-primary: #1F2933;
+  --color-text-secondary: #6B7C93;
+  --color-border: #D8E6F3;
+}
+
+@theme {
+  --color-bg-main: #F3F9FF;
+  --color-primary: #007BFF;
+  --color-primary-hover: #006BE6;
+  --color-secondary: #1E90FF;
+  --color-accent-blue-light: #DCEEFF;
+  --color-accent-blue-pale: #EAF4FF;
+  --color-accent-green: #69E785;
+  --color-accent-orange: #FFA51F;
+  --color-accent-red: #FF5A5F;
+  --color-text-primary: #1F2933;
+  --color-text-secondary: #6B7C93;
+  --color-border: #D8E6F3;
+}
+
+body {
+  font-family: 'Inter', 'Poppins', 'Manrope', system-ui, -apple-system, sans-serif;
+  background-color: var(--color-bg-main);
+  color: var(--color-text-primary);
+  margin: 0;
+}
