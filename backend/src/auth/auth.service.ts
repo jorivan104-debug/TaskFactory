@@ -1,6 +1,13 @@
-import { ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { applyBaselineSeed } from '../database/baseline-seed';
 
@@ -29,22 +36,44 @@ export class AuthService {
     const email = this.normalizeEmail(dto.email);
     const hash = await bcrypt.hash(dto.password, 10);
 
-    const user = await this.prisma.user.create({
-      data: {
-        email,
-        passwordHash: hash,
-        fullName: dto.fullName?.trim() || 'Administrador',
-      },
-    });
+    try {
+      return await this.prisma.$transaction(
+        async (tx) => {
+          const user = await tx.user.create({
+            data: {
+              email,
+              passwordHash: hash,
+              fullName: dto.fullName?.trim() || 'Administrador',
+            },
+          });
 
-    await applyBaselineSeed(this.prisma, user.id);
+          await applyBaselineSeed(tx, user.id);
 
-    const full = await this.prisma.user.findUnique({
-      where: { id: user.id },
-      include: { userRoles: { include: { role: true } } },
-    });
-    if (!full) throw new UnauthorizedException();
-    return this.login(full);
+          const full = await tx.user.findUnique({
+            where: { id: user.id },
+            include: { userRoles: { include: { role: true } } },
+          });
+          if (!full) throw new UnauthorizedException();
+          return this.login(full);
+        },
+        {
+          maxWait: 30000,
+          timeout: 120000,
+        },
+      );
+    } catch (e) {
+      if (e instanceof Prisma.PrismaClientKnownRequestError) {
+        if (e.code === 'P2002') {
+          throw new ConflictException('Ese correo ya está registrado.');
+        }
+        throw new BadRequestException(
+          `No se pudo crear la instalación inicial (${e.code}). Compruebe migraciones y la base de datos.`,
+        );
+      }
+      if (e instanceof UnauthorizedException || e instanceof ForbiddenException) throw e;
+      const msg = e instanceof Error ? e.message : String(e);
+      throw new BadRequestException(`Error al completar la instalación: ${msg}`);
+    }
   }
 
   async validateUser(email: string, password: string) {

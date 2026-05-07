@@ -1,10 +1,27 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { AxiosError } from 'axios';
 import { useAuthStore } from '../stores/auth.store';
 import { Button } from '../components/ui/Button';
 import api from '../lib/api';
 
 function formatApiError(err: unknown, fallback: string) {
+  if (err instanceof AxiosError) {
+    const msg = err.response?.data?.message;
+    if (typeof msg === 'string' && msg.length > 0) return msg;
+    if (Array.isArray(msg) && msg.length > 0) return msg.join(', ');
+    if (err.code === 'ERR_NETWORK' || err.message === 'Network Error') {
+      return 'Sin conexión con el servidor o /api no enlaza al backend. Revise Dokploy y el dominio.';
+    }
+    const status = err.response?.status;
+    if (status === 502 || status === 504) {
+      return `El servidor intermedio respondió con error (${status}). Compruebe que el backend esté en ejecución.`;
+    }
+    if (status === 404) {
+      return 'No existe la ruta de instalación en el servidor. Despliegue la última versión del backend.';
+    }
+    if (status) return `${fallback} (HTTP ${status})`;
+  }
   const data = (err as { response?: { data?: { message?: string | string[] } } })?.response?.data;
   const m = data?.message;
   if (typeof m === 'string') return m;

@@ -1,10 +1,16 @@
-import { PrismaClient } from '@prisma/client';
+import type { PrismaClient } from '@prisma/client';
+
+/** Cliente de consulta dentro de `$transaction` o `PrismaClient` completo */
+export type PrismaDb = Omit<
+  PrismaClient,
+  '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'
+>;
 
 /**
  * Catálogos y datos base que dependen del usuario administrador creado primero.
  * Idempotente: seguro llamar tras upsert del admin en `prisma/seed.ts`.
  */
-export async function applyBaselineSeed(prisma: PrismaClient, adminUserId: string) {
+export async function applyBaselineSeed(prisma: PrismaDb, adminUserId: string) {
   const roleData = [
     { key: 'admin', name: 'Administrador' },
     { key: 'area_manager', name: 'Encargado de área' },
