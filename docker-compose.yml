@@ -53,8 +53,11 @@ services:
         condition: service_healthy
     environment:
       BACKEND_UPSTREAM: backend:3000
-    ports:
-      - "${HOST_WEB_PORT:-8088}:80"
+    # En Dokploy, NO mapeamos el puerto 80 al host (lo usa Traefik).
+    # Configura el "Domain" del frontend en el panel de Dokploy apuntando
+    # al puerto interno 80 del contenedor; Traefik enruta el trafico publico.
+    expose:
+      - "80"
 
 volumes:
   taskfactory_pgdata:
