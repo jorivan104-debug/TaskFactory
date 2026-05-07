@@ -15,5 +15,7 @@ COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/tsconfig.json ./tsconfig.json
 COPY --from=builder /app/nest-cli.json ./nest-cli.json
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
 EXPOSE 3000
-CMD ["sh", "-c", "npx prisma migrate deploy && (node dist/main || npm run start)"]
+ENTRYPOINT ["/docker-entrypoint.sh"]
