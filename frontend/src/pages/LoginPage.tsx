@@ -20,6 +20,9 @@ export function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [setupRequired, setSetupRequired] = useState<boolean | null>(null);
+  /** Si la API falla, antes forzábamos solo "login" y con BD vacía nunca entrabas: permite abrir el formulario de 1ª instalación a mano */
+  const [setupStatusFailed, setSetupStatusFailed] = useState(false);
+  const [preferSetup, setPreferSetup] = useState(false);
   const { setAuth } = useAuthStore();
   const navigate = useNavigate();
 
@@ -28,9 +31,15 @@ export function LoginPage() {
     (async () => {
       try {
         const { data } = await api.get<{ setupRequired: boolean }>('/auth/setup-status');
-        if (!cancelled) setSetupRequired(data.setupRequired);
+        if (!cancelled) {
+          setSetupRequired(data.setupRequired);
+          setSetupStatusFailed(false);
+        }
       } catch {
-        if (!cancelled) setSetupRequired(false);
+        if (!cancelled) {
+          setSetupRequired(false);
+          setSetupStatusFailed(true);
+        }
       }
     })();
     return () => {
@@ -89,6 +98,8 @@ export function LoginPage() {
     );
   }
 
+  const showSetupForm = setupRequired || preferSetup;
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-[var(--color-bg-main)]">
       <div className="w-full max-w-sm">
@@ -96,11 +107,11 @@ export function LoginPage() {
           <div className="text-center mb-8">
             <h1 className="text-2xl font-bold text-[var(--color-primary)]">TaskFactory</h1>
             <p className="text-[var(--color-text-secondary)] mt-2 text-sm">
-              {setupRequired ? 'Configuración inicial' : 'Gestión de producción'}
+              {showSetupForm ? 'Configuración inicial' : 'Gestión de producción'}
             </p>
           </div>
 
-          {setupRequired ? (
+          {showSetupForm ? (
             <form onSubmit={handleSetup} className="space-y-4">
               <p className="text-sm text-[var(--color-text-secondary)] rounded-xl bg-slate-50 px-4 py-3">
                 No hay usuarios en el sistema. Cree la cuenta del administrador para continuar.
@@ -158,9 +169,33 @@ export function LoginPage() {
               <Button type="submit" disabled={loading} className="w-full">
                 {loading ? 'Guardando...' : 'Crear administrador e ingresar'}
               </Button>
+              {!setupRequired && preferSetup && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPreferSetup(false);
+                    setError('');
+                  }}
+                  className="w-full text-sm text-[var(--color-text-secondary)] underline"
+                >
+                  Volver al inicio de sesión
+                </button>
+              )}
             </form>
           ) : (
             <form onSubmit={handleLogin} className="space-y-4">
+              {setupStatusFailed && (
+                <div className="bg-amber-50 text-amber-900 text-sm rounded-xl px-4 py-3 space-y-2">
+                  <p>No se pudo verificar si es la primera instalación (¿API o proxy?).</p>
+                  <button
+                    type="button"
+                    onClick={() => setPreferSetup(true)}
+                    className="font-medium text-[var(--color-primary)] underline"
+                  >
+                    Primera instalación: crear administrador
+                  </button>
+                </div>
+              )}
               {error && (
                 <div className="bg-red-50 text-[var(--color-accent-red)] text-sm rounded-xl px-4 py-3">
                   {error}
@@ -189,6 +224,16 @@ export function LoginPage() {
               <Button type="submit" disabled={loading} className="w-full">
                 {loading ? 'Ingresando...' : 'Ingresar'}
               </Button>
+              <button
+                type="button"
+                onClick={() => {
+                  setPreferSetup(true);
+                  setError('');
+                }}
+                className="w-full text-sm text-[var(--color-text-secondary)] underline"
+              >
+                Primera instalación (cuenta nueva en servidor vacío)
+              </button>
             </form>
           )}
         </div>

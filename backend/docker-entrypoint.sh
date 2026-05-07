@@ -22,7 +22,11 @@ fi
 
 if [ "$RUN_SEED_ON_START" = "1" ] || [ "$RUN_SEED_ON_START" = "true" ]; then
   echo "[taskfactory] RUN_SEED_ON_START: ejecutando prisma db seed"
-  npx prisma db seed || echo "[taskfactory] advertencia: prisma db seed falló (login puede fallar hasta corregirlo)"
+  if npx prisma db seed; then
+    echo "[taskfactory] seed OK — usuario por defecto (semilla): admin@taskfactory.co / admin123"
+  else
+    echo "[taskfactory] ERROR: prisma db seed falló. Revise logs arriba; use la pantalla «Primera instalación» o corrija DATABASE_URL / migraciones."
+  fi
 fi
 
 echo "[taskfactory] iniciando la API NestJS..."
