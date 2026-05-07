@@ -3,6 +3,7 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -13,6 +14,8 @@ import { applyBaselineSeed } from '../database/baseline-seed';
 
 @Injectable()
 export class AuthService {
+  private readonly log = new Logger(AuthService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
@@ -30,14 +33,17 @@ export class AuthService {
   async bootstrapFirstAdmin(dto: { email: string; password: string; fullName?: string }) {
     const n = await this.prisma.user.count();
     if (n > 0) {
-      throw new ForbiddenException('La instalación ya fue completada. Inicie sesión con su cuenta.');
+      throw new ForbiddenException(
+        'La instalación ya fue completada (hay al menos un usuario). Use inicio de sesión. Si usó semilla: admin@taskfactory.co / admin123',
+      );
     }
 
     const email = this.normalizeEmail(dto.email);
     const hash = await bcrypt.hash(dto.password, 10);
 
+    let userId: string;
     try {
-      return await this.prisma.$transaction(
+      userId = await this.prisma.$transaction(
         async (tx) => {
           const user = await tx.user.create({
             data: {
@@ -48,31 +54,57 @@ export class AuthService {
           });
 
           await applyBaselineSeed(tx, user.id);
-
-          const full = await tx.user.findUnique({
-            where: { id: user.id },
-            include: { userRoles: { include: { role: true } } },
-          });
-          if (!full) throw new UnauthorizedException();
-          return this.login(full);
+          return user.id;
         },
         {
-          maxWait: 30000,
-          timeout: 120000,
+          maxWait: 60000,
+          timeout: 180000,
         },
       );
     } catch (e) {
+      this.log.warn(`bootstrapFirstAdmin falló: ${e instanceof Error ? e.stack : String(e)}`);
       if (e instanceof Prisma.PrismaClientKnownRequestError) {
         if (e.code === 'P2002') {
           throw new ConflictException('Ese correo ya está registrado.');
         }
+        if (e.code === 'P2003') {
+          throw new BadRequestException(
+            `Violación de integridad (${e.code}). Ejecute migraciones en el backend (prisma migrate deploy) y verifique DATABASE_URL.`,
+          );
+        }
+        if (e.code === 'P2028') {
+          throw new BadRequestException(
+            'Tiempo de espera de la transacción agotado. Intente de nuevo; si persiste, revise carga de la base de datos.',
+          );
+        }
+        const meta = e.meta ? ` ${JSON.stringify(e.meta)}` : '';
         throw new BadRequestException(
-          `No se pudo crear la instalación inicial (${e.code}). Compruebe migraciones y la base de datos.`,
+          `No se pudo crear la instalación inicial (${e.code}).${meta} Revise migraciones y logs del backend.`,
         );
       }
       if (e instanceof UnauthorizedException || e instanceof ForbiddenException) throw e;
+      if (e instanceof Error && e.name === 'PrismaClientValidationError') {
+        throw new BadRequestException(`Error de validación Prisma: ${e.message}`);
+      }
       const msg = e instanceof Error ? e.message : String(e);
       throw new BadRequestException(`Error al completar la instalación: ${msg}`);
+    }
+
+    const full = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: { userRoles: { include: { role: true } } },
+    });
+    if (!full) {
+      throw new BadRequestException('Usuario creado pero no se pudo recargar. Intente iniciar sesión.');
+    }
+
+    try {
+      return this.login(full);
+    } catch (e) {
+      this.log.error(`JWT tras instalación: ${e instanceof Error ? e.message : e}`);
+      throw new BadRequestException(
+        'La cuenta y catálogos se crearon, pero falló la firma del token. Revise JWT_SECRET (sin saltos de línea) e intente iniciar sesión con el correo y contraseña que definió.',
+      );
     }
   }
 
