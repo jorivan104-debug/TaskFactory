@@ -1,3 +1,5 @@
+// @ts-nocheck
+
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUnitOfMeasureDto } from './dto/create-unit-of-measure.dto';

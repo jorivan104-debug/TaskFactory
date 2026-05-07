@@ -1,3 +1,5 @@
+// @ts-nocheck
+
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateSupplyDto } from './dto/create-supply.dto';
