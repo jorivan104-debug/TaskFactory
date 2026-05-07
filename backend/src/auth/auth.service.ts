@@ -1,7 +1,8 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
+import { applyBaselineSeed } from '../database/baseline-seed';
 
 @Injectable()
 export class AuthService {
@@ -10,9 +11,46 @@ export class AuthService {
     private readonly jwt: JwtService,
   ) {}
 
+  private normalizeEmail(email: string) {
+    return email.trim().toLowerCase();
+  }
+
+  async getSetupStatus() {
+    const n = await this.prisma.user.count();
+    return { setupRequired: n === 0 };
+  }
+
+  async bootstrapFirstAdmin(dto: { email: string; password: string; fullName?: string }) {
+    const n = await this.prisma.user.count();
+    if (n > 0) {
+      throw new ForbiddenException('La instalación ya fue completada. Inicie sesión con su cuenta.');
+    }
+
+    const email = this.normalizeEmail(dto.email);
+    const hash = await bcrypt.hash(dto.password, 10);
+
+    const user = await this.prisma.user.create({
+      data: {
+        email,
+        passwordHash: hash,
+        fullName: dto.fullName?.trim() || 'Administrador',
+      },
+    });
+
+    await applyBaselineSeed(this.prisma, user.id);
+
+    const full = await this.prisma.user.findUnique({
+      where: { id: user.id },
+      include: { userRoles: { include: { role: true } } },
+    });
+    if (!full) throw new UnauthorizedException();
+    return this.login(full);
+  }
+
   async validateUser(email: string, password: string) {
+    const normalized = this.normalizeEmail(email);
     const user = await this.prisma.user.findUnique({
-      where: { email },
+      where: { email: normalized },
       include: { userRoles: { include: { role: true } } },
     });
     if (!user || !user.isActive) throw new UnauthorizedException();
@@ -42,7 +80,7 @@ export class AuthService {
     const hash = await bcrypt.hash(password, 10);
     const user = await this.prisma.user.create({
       data: {
-        email,
+        email: this.normalizeEmail(email),
         passwordHash: hash,
         fullName,
         createdByUserId,
