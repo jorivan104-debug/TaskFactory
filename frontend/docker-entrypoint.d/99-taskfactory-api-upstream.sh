@@ -1,7 +1,25 @@
 #!/bin/sh
 set -e
-# Sustituye marcador sin envsubst (evita problemas con $$ y orden de entrypoint).
-# Dokploy: BACKEND_UPSTREAM=nombre-servicio-api:3000 (misma red Docker que el frontend)
-UPSTREAM="${BACKEND_UPSTREAM:-backend:3000}"
-sed "s|__BACKEND_UPSTREAM__|${UPSTREAM}|g" /etc/nginx/taskfactory/default.conf.template > /etc/nginx/conf.d/default.conf
+# Upstream del API NestJS para location /api (misma red Docker que este contenedor).
+# En Dokploy el servicio casi nunca se llama "backend". Ejemplos:
+#   BACKEND_UPSTREAM=taskfactory-app-lz4xlg:3000
+#   TASKFACTORY_API_HOST=taskfactory-app-lz4xlg:3000
+#   API_UPSTREAM=taskfactory-app-lz4xlg:3000
+UPSTREAM="${BACKEND_UPSTREAM:-}"
+[ -z "$UPSTREAM" ] && UPSTREAM="${TASKFACTORY_API_HOST:-}"
+[ -z "$UPSTREAM" ] && UPSTREAM="${API_UPSTREAM:-}"
+[ -z "$UPSTREAM" ] && UPSTREAM="backend:3000"
+
+if [ "$UPSTREAM" = "backend:3000" ]; then
+  echo "[taskfactory-nginx] AVISO: usando backend:3000. Si /api devuelve 502, defina BACKEND_UPSTREAM con el nombre del servicio del API en Dokploy (p. ej. taskfactory-app-lz4xlg:3000)." >&2
+fi
+
+awk -v u="$UPSTREAM" '{ gsub("__BACKEND_UPSTREAM__", u); print }' \
+  /etc/nginx/taskfactory/default.conf.template > /etc/nginx/conf.d/default.conf
+
+nginx -t 2>&1 || {
+  echo "[taskfactory-nginx] ERROR: nginx -t falló. Revise la plantilla y BACKEND_UPSTREAM." >&2
+  exit 1
+}
+
 echo "[taskfactory-nginx] proxy /api -> http://${UPSTREAM}"

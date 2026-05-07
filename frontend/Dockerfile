@@ -6,7 +6,7 @@ COPY . .
 RUN npm run build
 
 FROM nginx:alpine
-# Sobrescribir en Dokploy: BACKEND_UPSTREAM=<nombre-servicio-backend>:3000
+# Dokploy: nombre interno del servicio API + puerto (ej. taskfactory-app-lz4xlg:3000)
 ENV BACKEND_UPSTREAM=backend:3000
 RUN mkdir -p /etc/nginx/taskfactory
 COPY --from=builder /app/dist /usr/share/nginx/html
