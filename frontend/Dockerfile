@@ -6,8 +6,9 @@ COPY . .
 RUN npm run build
 
 FROM nginx:alpine
-# Dokploy: nombre interno del servicio API + puerto (ej. taskfactory-app-lz4xlg:3000)
-ENV BACKEND_UPSTREAM=backend:3000
+# Por defecto `app:3000` (nombre habitual del servicio API en Dokploy). En docker-compose local se fuerza `backend:3000`.
+# Opcional: API_PUBLIC_URL = URL HTTPS pública del prefijo /api si no usa proxy interno.
+ENV BACKEND_UPSTREAM=app:3000
 RUN mkdir -p /etc/nginx/taskfactory
 COPY --from=builder /app/dist /usr/share/nginx/html
 COPY nginx.conf.template /etc/nginx/taskfactory/default.conf.template

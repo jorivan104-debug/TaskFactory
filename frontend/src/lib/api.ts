@@ -1,7 +1,21 @@
 import axios from 'axios';
 
+function resolveApiBaseURL(): string {
+  if (typeof window !== 'undefined') {
+    const v = window.__TASKFACTORY_API_BASE__;
+    if (typeof v === 'string' && v.length > 0) {
+      return v.replace(/\/+$/, '');
+    }
+  }
+  const env = import.meta.env.VITE_API_BASE_URL;
+  if (typeof env === 'string' && env.length > 0) {
+    return env.replace(/\/+$/, '');
+  }
+  return '/api';
+}
+
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: resolveApiBaseURL(),
   headers: { 'Content-Type': 'application/json' },
 });
 

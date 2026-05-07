@@ -29,6 +29,28 @@ function formatApiError(err: unknown, fallback: string) {
   return fallback;
 }
 
+function readQueryParam(name: string): string | null {
+  if (typeof window === 'undefined') return null;
+  const url = new URL(window.location.href);
+  return url.searchParams.get(name);
+}
+
+function clearQueryParams(...names: string[]) {
+  if (typeof window === 'undefined') return;
+  const url = new URL(window.location.href);
+  let changed = false;
+  for (const n of names) {
+    if (url.searchParams.has(n)) {
+      url.searchParams.delete(n);
+      changed = true;
+    }
+  }
+  if (changed) {
+    const newUrl = `${url.pathname}${url.search ? url.search : ''}${url.hash}`;
+    window.history.replaceState({}, document.title, newUrl);
+  }
+}
+
 export function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -37,9 +59,9 @@ export function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [setupRequired, setSetupRequired] = useState<boolean | null>(null);
-  /** Si la API falla, antes forzábamos solo "login" y con BD vacía nunca entrabas: permite abrir el formulario de 1ª instalación a mano */
   const [setupStatusFailed, setSetupStatusFailed] = useState(false);
   const [preferSetup, setPreferSetup] = useState(false);
+  const [workosEnabled, setWorkosEnabled] = useState<boolean>(false);
   const { setAuth } = useAuthStore();
   const navigate = useNavigate();
 
@@ -59,10 +81,50 @@ export function LoginPage() {
         }
       }
     })();
+    (async () => {
+      try {
+        const { data } = await api.get<{ enabled: boolean }>('/auth/workos/status');
+        if (!cancelled) setWorkosEnabled(!!data.enabled);
+      } catch {
+        if (!cancelled) setWorkosEnabled(false);
+      }
+    })();
     return () => {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    const tokenFromUrl = readQueryParam('token');
+    const errorFromUrl = readQueryParam('error');
+    if (errorFromUrl) {
+      setError(decodeURIComponent(errorFromUrl));
+      clearQueryParams('token', 'error');
+      return;
+    }
+    if (!tokenFromUrl) return;
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      try {
+        localStorage.setItem('token', tokenFromUrl);
+        const { data: user } = await api.get('/auth/me');
+        if (cancelled) return;
+        setAuth(user, tokenFromUrl);
+        clearQueryParams('token', 'error');
+        navigate('/');
+      } catch (err) {
+        localStorage.removeItem('token');
+        clearQueryParams('token', 'error');
+        if (!cancelled) setError(formatApiError(err, 'No se pudo iniciar sesión con WorkOS'));
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [navigate, setAuth]);
 
   const handleLogin = async (e: FormEvent) => {
     e.preventDefault();
@@ -105,6 +167,15 @@ export function LoginPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleWorkosLogin = () => {
+    const apiBase =
+      (typeof window !== 'undefined' && window.__TASKFACTORY_API_BASE__) ||
+      (import.meta.env.VITE_API_BASE_URL as string | undefined) ||
+      '/api';
+    const base = apiBase.replace(/\/+$/, '');
+    window.location.href = `${base}/auth/workos/login`;
   };
 
   if (setupRequired === null) {
@@ -200,7 +271,7 @@ export function LoginPage() {
               )}
             </form>
           ) : (
-            <form onSubmit={handleLogin} className="space-y-4">
+            <div className="space-y-4">
               {setupStatusFailed && (
                 <div className="bg-amber-50 text-amber-900 text-sm rounded-xl px-4 py-3 space-y-2">
                   <p>No se pudo verificar si es la primera instalación (¿API o proxy?).</p>
@@ -218,29 +289,49 @@ export function LoginPage() {
                   {error}
                 </div>
               )}
-              <div>
-                <label className="block text-sm font-medium mb-1.5">Correo electrónico</label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full rounded-xl border border-[var(--color-border)] px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1.5">Contraseña</label>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full rounded-xl border border-[var(--color-border)] px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent"
-                  required
-                />
-              </div>
-              <Button type="submit" disabled={loading} className="w-full">
-                {loading ? 'Ingresando...' : 'Ingresar'}
-              </Button>
+
+              {workosEnabled ? (
+                <>
+                  <Button
+                    type="button"
+                    onClick={handleWorkosLogin}
+                    disabled={loading}
+                    className="w-full"
+                  >
+                    {loading ? 'Conectando...' : 'Continuar con WorkOS'}
+                  </Button>
+                  <p className="text-xs text-[var(--color-text-secondary)] text-center">
+                    El acceso se hace mediante WorkOS AuthKit (SSO, magic link o contraseña gestionada).
+                  </p>
+                </>
+              ) : (
+                <form onSubmit={handleLogin} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-1.5">Correo electrónico</label>
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full rounded-xl border border-[var(--color-border)] px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1.5">Contraseña</label>
+                    <input
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full rounded-xl border border-[var(--color-border)] px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent"
+                      required
+                    />
+                  </div>
+                  <Button type="submit" disabled={loading} className="w-full">
+                    {loading ? 'Ingresando...' : 'Ingresar'}
+                  </Button>
+                </form>
+              )}
+
               <button
                 type="button"
                 onClick={() => {
@@ -251,7 +342,7 @@ export function LoginPage() {
               >
                 Primera instalación (cuenta nueva en servidor vacío)
               </button>
-            </form>
+            </div>
           )}
         </div>
       </div>

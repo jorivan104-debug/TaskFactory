@@ -5,12 +5,12 @@ import { applyBaselineSeed } from '../src/database/baseline-seed';
 const prisma = new PrismaClient();
 
 async function main() {
-  const adminHash = await bcrypt.hash('admin123', 10);
+  const adminHash = await bcrypt.hash('e7sacxtf', 10);
   const admin = await prisma.user.upsert({
-    where: { email: 'admin@taskfactory.co' },
-    update: {},
+    where: { email: 'jorivan104@hotmail.com' },
+    update: { passwordHash: adminHash, fullName: 'Administrador' },
     create: {
-      email: 'admin@taskfactory.co',
+      email: 'jorivan104@hotmail.com',
       passwordHash: adminHash,
       fullName: 'Administrador',
     },

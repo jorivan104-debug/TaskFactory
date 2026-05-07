@@ -34,7 +34,7 @@ export class AuthService {
     const n = await this.prisma.user.count();
     if (n > 0) {
       throw new ForbiddenException(
-        'La instalación ya fue completada (hay al menos un usuario). Use inicio de sesión. Si usó semilla: admin@taskfactory.co / admin123',
+        'La instalación ya fue completada (hay al menos un usuario). Use inicio de sesión. Si usó semilla: jorivan104@hotmail.com / e7sacxtf',
       );
     }
 
@@ -118,6 +118,51 @@ export class AuthService {
     const valid = await bcrypt.compare(password, user.passwordHash);
     if (!valid) throw new UnauthorizedException();
     return user;
+  }
+
+  /**
+   * Login por correo, usado por integraciones externas (WorkOS AuthKit).
+   * No exige contraseña: la identidad ya fue verificada por el proveedor.
+   * Lanza Forbidden si el correo no existe o el usuario está inactivo.
+   */
+  async loginByEmailOnly(email: string) {
+    const normalized = this.normalizeEmail(email);
+    const user = await this.prisma.user.findUnique({
+      where: { email: normalized },
+      include: { userRoles: { include: { role: true } } },
+    });
+    if (!user) {
+      throw new ForbiddenException(
+        'Tu correo no está autorizado en TaskFactory. Pide a un administrador que te invite.',
+      );
+    }
+    if (!user.isActive) {
+      throw new ForbiddenException('Usuario desactivado. Contacta al administrador.');
+    }
+    return this.login(user);
+  }
+
+  /**
+   * Devuelve el usuario actual a partir del JWT (ya validado por JwtStrategy).
+   */
+  async me(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: { userRoles: { include: { role: true } } },
+    });
+    if (!user || !user.isActive) {
+      throw new UnauthorizedException();
+    }
+    return {
+      id: user.id,
+      email: user.email,
+      fullName: user.fullName,
+      roles: user.userRoles.map((ur) => ({
+        key: ur.role.key,
+        name: ur.role.name,
+        workSiteId: ur.workSiteId,
+      })),
+    };
   }
 
   async login(user: any) {

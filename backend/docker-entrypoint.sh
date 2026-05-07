@@ -23,7 +23,7 @@ fi
 if [ "$RUN_SEED_ON_START" = "1" ] || [ "$RUN_SEED_ON_START" = "true" ]; then
   echo "[taskfactory] RUN_SEED_ON_START: ejecutando prisma db seed"
   if npx prisma db seed; then
-    echo "[taskfactory] seed OK — usuario por defecto (semilla): admin@taskfactory.co / admin123"
+    echo "[taskfactory] seed OK — usuario por defecto (semilla): jorivan104@hotmail.com / e7sacxtf"
   else
     echo "[taskfactory] ERROR: prisma db seed falló. Revise logs arriba; use la pantalla «Primera instalación» o corrija DATABASE_URL / migraciones."
   fi
