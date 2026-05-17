@@ -129,6 +129,8 @@ docker compose -p taskfactory-compose-4rodzf run --rm backend \
   npx prisma migrate resolve --rolled-back 20260518120000_garment_references_catalog
 ```
 
+Desde el commit con recuperación automática, el **entrypoint del backend** detecta P3009 en esa migración, ejecuta `migrate resolve --rolled-back` y vuelve a lanzar `migrate deploy` (solo hace falta **redeploy con rebuild del backend**, sin SSH).
+
 > La migración corregida elimina referencias de catálogo Lexi sin `brand_id` y rellena `code` / `serie` en las filas restantes antes de quitar columnas `source` y `lexi_external_id`.
 
 ## Build local de imágenes (referencia)

@@ -13,11 +13,35 @@ if [ -z "$DATABASE_URL" ]; then
   exit 1
 fi
 
+# Migración que falló en staging por SQL inválido; el entrypoint puede marcarla rolled-back y reintentar.
+GARMENT_CATALOG_MIGRATION="20260518120000_garment_references_catalog"
+MIGRATE_LOG=$(mktemp)
+trap 'rm -f "$MIGRATE_LOG"' EXIT
+
+run_prisma_migrate_deploy() {
+  set +e
+  npx prisma migrate deploy >"$MIGRATE_LOG" 2>&1
+  code=$?
+  set -e
+  cat "$MIGRATE_LOG"
+  return "$code"
+}
+
 if [ "$SKIP_PRISMA_MIGRATE" = "1" ] || [ "$SKIP_PRISMA_MIGRATE" = "true" ]; then
   echo "[taskfactory] SKIP_PRISMA_MIGRATE está activo — no se ejecutará prisma migrate deploy"
 else
   echo "[taskfactory] ejecutando: npx prisma migrate deploy"
-  npx prisma migrate deploy
+  if ! run_prisma_migrate_deploy; then
+    if grep -q 'P3009' "$MIGRATE_LOG" && grep -q "$GARMENT_CATALOG_MIGRATION" "$MIGRATE_LOG"; then
+      echo "[taskfactory] P3009: migración $GARMENT_CATALOG_MIGRATION fallida; marcando rolled-back y reintentando..."
+      npx prisma migrate resolve --rolled-back "$GARMENT_CATALOG_MIGRATION"
+      echo "[taskfactory] reintentando: npx prisma migrate deploy"
+      run_prisma_migrate_deploy
+    else
+      echo "[taskfactory] ERROR: prisma migrate deploy falló"
+      exit 1
+    fi
+  fi
 fi
 
 if [ "$RUN_SEED_ON_START" = "1" ] || [ "$RUN_SEED_ON_START" = "true" ]; then
