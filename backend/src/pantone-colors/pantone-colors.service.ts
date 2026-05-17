@@ -2,6 +2,7 @@
 
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { normalizeHexApprox } from '../common/normalize-hex';
 import { CreatePantoneColorDto } from './dto/create-pantone-color.dto';
 import { UpdatePantoneColorDto } from './dto/update-pantone-color.dto';
 
@@ -22,14 +23,26 @@ export class PantoneColorsService {
   }
 
   create(dto: CreatePantoneColorDto, userId: string) {
+    const { hexApprox, ...rest } = dto;
     return this.prisma.pantoneColor.create({
-      data: { ...dto, createdByUserId: userId },
+      data: {
+        ...rest,
+        hexApprox: normalizeHexApprox(hexApprox),
+        createdByUserId: userId,
+      },
     });
   }
 
   async update(id: string, dto: UpdatePantoneColorDto) {
     await this.findOne(id);
-    return this.prisma.pantoneColor.update({ where: { id }, data: dto });
+    const { hexApprox, ...rest } = dto;
+    return this.prisma.pantoneColor.update({
+      where: { id },
+      data: {
+        ...rest,
+        ...(hexApprox !== undefined && { hexApprox: normalizeHexApprox(hexApprox) }),
+      },
+    });
   }
 
   async remove(id: string) {

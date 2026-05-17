@@ -1,6 +1,7 @@
 import type { CatalogCrudConfig } from '../../components/settings/CatalogCrudPage';
 import { ActiveBadge } from '../../components/settings/CatalogCrudPage';
 import api from '../../lib/api';
+import { normalizeHexColor } from '../../lib/color';
 
 const activeColumn = {
   key: 'isActive',
@@ -112,6 +113,17 @@ export const brandsConfig: CatalogCrudConfig = {
     { name: 'abbreviation', label: 'Abreviatura', type: 'text', required: true },
     { name: 'nextReferenceSequence', label: 'Siguiente secuencia', type: 'number' },
   ],
+  fetchCreateDefaults: async () => {
+    const { data } = await api.get<{ nextReferenceSequence: number }>(
+      '/brands/suggested-create-defaults',
+    );
+    return { nextReferenceSequence: data.nextReferenceSequence };
+  },
+  mapRowToForm: (row) => ({
+    name: String(row.name ?? ''),
+    abbreviation: String(row.abbreviation ?? ''),
+    nextReferenceSequence: Number(row.nextReferenceSequence ?? 1),
+  }),
 };
 
 export async function loadSilhouetteCategoryOptions() {
@@ -130,7 +142,23 @@ export function buildSilhouettesConfig(
     apiPath: '/silhouettes',
     entityLabel: 'silueta',
     columns: [
+      {
+        key: 'imageUrl',
+        header: 'Miniatura',
+        render: (row) => {
+          const src = row.imageUrl as string | undefined;
+          if (!src) return '—';
+          return (
+            <img
+              src={src}
+              alt=""
+              className="h-10 w-10 rounded border border-[var(--color-border)] object-cover"
+            />
+          );
+        },
+      },
       { key: 'name', header: 'Nombre' },
+      { key: 'gender', header: 'Género', render: (row) => String(row.gender ?? '—') },
       {
         key: 'silhouetteCategory',
         header: 'Categoría',
@@ -149,10 +177,25 @@ export function buildSilhouettesConfig(
         required: true,
         options: categoryOptions,
       },
+      {
+        name: 'gender',
+        label: 'Género',
+        type: 'select',
+        options: [
+          { value: 'Dama', label: 'Dama' },
+          { value: 'Caballero', label: 'Caballero' },
+          { value: 'Niño', label: 'Niño' },
+          { value: 'Niña', label: 'Niña' },
+          { value: 'Unisex', label: 'Unisex' },
+        ],
+      },
+      { name: 'imageUrl', label: 'Foto miniatura', type: 'image' },
     ],
     mapRowToForm: (row) => ({
       name: String(row.name ?? ''),
       silhouetteCategoryId: String((row.silhouetteCategoryId as string) ?? ''),
+      gender: String(row.gender ?? ''),
+      imageUrl: String(row.imageUrl ?? ''),
     }),
   };
 }
@@ -186,7 +229,7 @@ export const pantoneColorsConfig: CatalogCrudConfig = {
       key: 'hexApprox',
       header: 'Muestra',
       render: (row) => {
-        const hex = row.hexApprox as string | undefined;
+        const hex = normalizeHexColor(row.hexApprox as string | undefined);
         if (!hex) return '—';
         return (
           <span className="inline-flex items-center gap-2">
@@ -205,8 +248,15 @@ export const pantoneColorsConfig: CatalogCrudConfig = {
     { name: 'pantoneSystem', label: 'Sistema Pantone', type: 'text', required: true, placeholder: 'TCX' },
     { name: 'pantoneCode', label: 'Código', type: 'text', required: true },
     { name: 'name', label: 'Nombre', type: 'text' },
-    { name: 'hexApprox', label: 'Hex aproximado', type: 'text', placeholder: '#0F4C81' },
+    { name: 'hexApprox', label: 'Hex aproximado', type: 'text', placeholder: '#0F4C81 o 758A9F' },
   ],
+  preparePayload: (form) => {
+    const hex = normalizeHexColor(String(form.hexApprox ?? ''));
+    return {
+      ...form,
+      ...(hex ? { hexApprox: hex } : {}),
+    };
+  },
 };
 
 export const unitsOfMeasureConfig: CatalogCrudConfig = {

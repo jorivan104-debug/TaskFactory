@@ -13,6 +13,11 @@ export class BrandsService {
     return this.prisma.brand.findMany({ orderBy: { name: 'asc' } });
   }
 
+  /** Contador inicial sugerido al crear una marca (cada marca lleva su propia secuencia). */
+  getSuggestedCreateDefaults() {
+    return { nextReferenceSequence: 1 };
+  }
+
   async findOne(id: string) {
     const item = await this.prisma.brand.findUnique({ where: { id } });
     if (!item) throw new NotFoundException('Brand not found');

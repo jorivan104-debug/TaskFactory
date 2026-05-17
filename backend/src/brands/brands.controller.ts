@@ -19,6 +19,12 @@ export class BrandsController {
     return this.service.findAll();
   }
 
+  @Get('suggested-create-defaults')
+  @ApiOperation({ summary: 'Suggested nextReferenceSequence for new brand form' })
+  getSuggestedCreateDefaults() {
+    return this.service.getSuggestedCreateDefaults();
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get brand by id' })
   findOne(@Param('id') id: string) {

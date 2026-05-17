@@ -1,5 +1,6 @@
-import { IsNotEmpty, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
+import { IsIn, IsNotEmpty, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { SILHOUETTE_GENDERS } from '../silhouette-genders';
 
 export class CreateSilhouetteDto {
   @ApiProperty({ example: 'T-Shirt' })
@@ -12,11 +13,16 @@ export class CreateSilhouetteDto {
   @IsUUID()
   silhouetteCategoryId: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ enum: SILHOUETTE_GENDERS })
+  @IsOptional()
+  @IsIn([...SILHOUETTE_GENDERS])
+  gender?: string;
+
+  @ApiPropertyOptional({ description: 'URL o data URL de miniatura' })
   @IsOptional()
   @IsString()
-  @MaxLength(32)
-  gender?: string;
+  @MaxLength(500_000)
+  imageUrl?: string;
 
   @ApiPropertyOptional()
   @IsOptional()

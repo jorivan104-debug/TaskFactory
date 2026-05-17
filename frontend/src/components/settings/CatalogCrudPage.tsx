@@ -3,11 +3,12 @@ import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Pencil, Plus, Trash2 } from 'lucide-react';
 import api from '../../lib/api';
+import { fileToThumbnailDataUrl } from '../../lib/image';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { DataTable } from '../ui/DataTable';
 
-export type CatalogFieldType = 'text' | 'number' | 'select';
+export type CatalogFieldType = 'text' | 'number' | 'select' | 'image';
 
 export interface CatalogField {
   name: string;
@@ -34,6 +35,8 @@ export interface CatalogCrudConfig {
   getRowId?: (row: Record<string, unknown>) => string;
   mapRowToForm?: (row: Record<string, unknown>) => Record<string, string | number>;
   preparePayload?: (form: Record<string, string | number>) => Record<string, unknown>;
+  /** Valores iniciales al abrir «Nuevo» (p. ej. siguiente secuencia en marcas). */
+  fetchCreateDefaults?: () => Promise<Record<string, string | number>>;
 }
 
 interface CatalogCrudPageProps {
@@ -100,6 +103,9 @@ export function CatalogCrudPage({
         if (field.type === 'select' && payload[field.name] === '') {
           delete payload[field.name];
         }
+        if (field.type === 'image' && payload[field.name] === '') {
+          delete payload[field.name];
+        }
       }
       if (editingId) {
         await api.patch(`${config.apiPath}/${editingId}`, payload);
@@ -133,9 +139,17 @@ export function CatalogCrudPage({
   const getId = (row: Record<string, unknown>) =>
     config.getRowId?.(row) ?? String(row.id ?? '');
 
-  const openCreate = () => {
+  const openCreate = async () => {
     setEditingId(null);
-    setForm(emptyForm(config.fields));
+    let initial = emptyForm(config.fields);
+    if (config.fetchCreateDefaults) {
+      try {
+        initial = { ...initial, ...(await config.fetchCreateDefaults()) };
+      } catch {
+        /* mantener formulario vacío */
+      }
+    }
+    setForm(initial);
     setFormError(null);
     setModalOpen(true);
   };
@@ -278,6 +292,43 @@ export function CatalogCrudPage({
                         </option>
                       ))}
                     </select>
+                  ) : field.type === 'image' ? (
+                    <div className="mt-1 space-y-2">
+                      {form[field.name] ? (
+                        <img
+                          src={String(form[field.name])}
+                          alt="Vista previa"
+                          className="h-20 w-20 rounded-lg border border-[var(--color-border)] object-cover"
+                        />
+                      ) : null}
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        className="block w-full text-sm text-[var(--color-text-secondary)]"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          try {
+                            const dataUrl = await fileToThumbnailDataUrl(file);
+                            setForm((f) => ({ ...f, [field.name]: dataUrl }));
+                            setFormError(null);
+                          } catch (err) {
+                            setFormError(
+                              err instanceof Error ? err.message : 'Error al cargar imagen',
+                            );
+                          }
+                        }}
+                      />
+                      {form[field.name] ? (
+                        <button
+                          type="button"
+                          className="text-xs text-[var(--color-accent-red)]"
+                          onClick={() => setForm((f) => ({ ...f, [field.name]: '' }))}
+                        >
+                          Quitar imagen
+                        </button>
+                      ) : null}
+                    </div>
                   ) : (
                     <input
                       type={field.type === 'number' ? 'number' : 'text'}

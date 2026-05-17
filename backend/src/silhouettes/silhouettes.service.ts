@@ -72,6 +72,7 @@ export class SilhouettesService {
         name: dto.name,
         silhouetteCategoryId: dto.silhouetteCategoryId,
         gender: dto.gender,
+        imageUrl: dto.imageUrl,
         description: dto.description,
         createdByUserId: userId,
       },
@@ -80,7 +81,16 @@ export class SilhouettesService {
 
   async update(id: string, dto: UpdateSilhouetteDto) {
     await this.findOne(id);
-    return this.prisma.silhouette.update({ where: { id }, data: dto });
+    return this.prisma.silhouette.update({
+      where: { id },
+      data: {
+        name: dto.name,
+        silhouetteCategoryId: dto.silhouetteCategoryId,
+        gender: dto.gender,
+        imageUrl: dto.imageUrl,
+        description: dto.description,
+      },
+    });
   }
 
   async remove(id: string) {
