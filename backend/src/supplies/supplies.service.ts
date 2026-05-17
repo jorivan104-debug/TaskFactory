@@ -1,6 +1,5 @@
-// @ts-nocheck
-
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateSupplyDto } from './dto/create-supply.dto';
 import { UpdateSupplyDto } from './dto/update-supply.dto';
@@ -14,8 +13,9 @@ export class SuppliesService {
       orderBy: { name: 'asc' },
       include: {
         supplyType: true,
-        supplier: true,
+        defaultSupplier: true,
         unitOfMeasure: true,
+        seller: { select: { id: true, fullName: true } },
       },
     });
   }
@@ -25,20 +25,34 @@ export class SuppliesService {
       where: { id },
       include: {
         supplyType: true,
-        supplier: true,
+        defaultSupplier: true,
         unitOfMeasure: true,
+        seller: { select: { id: true, fullName: true } },
       },
     });
     if (!item) throw new NotFoundException('Supply not found');
     return item;
   }
 
-  create(dto: CreateSupplyDto) {
+  create(dto: CreateSupplyDto, userId: string) {
     return this.prisma.supply.create({
-      data: dto,
+      data: {
+        name: dto.name,
+        supplyTypeId: dto.supplyTypeId,
+        unitOfMeasureId: dto.unitOfMeasureId,
+        defaultSupplierId: dto.defaultSupplierId,
+        sku: dto.sku,
+        description: dto.description,
+        purchaseUnitPrice:
+          dto.purchaseUnitPrice !== undefined
+            ? new Prisma.Decimal(dto.purchaseUnitPrice)
+            : undefined,
+        sellerUserId: userId,
+        createdByUserId: userId,
+      },
       include: {
         supplyType: true,
-        supplier: true,
+        defaultSupplier: true,
         unitOfMeasure: true,
       },
     });
@@ -46,12 +60,18 @@ export class SuppliesService {
 
   async update(id: string, dto: UpdateSupplyDto) {
     await this.findOne(id);
+    const { purchaseUnitPrice, ...rest } = dto;
     return this.prisma.supply.update({
       where: { id },
-      data: dto,
+      data: {
+        ...rest,
+        ...(purchaseUnitPrice !== undefined && {
+          purchaseUnitPrice: new Prisma.Decimal(purchaseUnitPrice),
+        }),
+      },
       include: {
         supplyType: true,
-        supplier: true,
+        defaultSupplier: true,
         unitOfMeasure: true,
       },
     });

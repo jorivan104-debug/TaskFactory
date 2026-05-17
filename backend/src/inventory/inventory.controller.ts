@@ -1,11 +1,21 @@
-import { Controller, Get, Post, Patch, Param, Body, Query, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Param,
+  Body,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { InventoryService } from './inventory.service';
 import { CreateMovementDto } from './dto/create-movement.dto';
-import { CreateProductDto } from './dto/create-product.dto';
-import { UpdateProductDto } from './dto/update-product.dto';
+import { UpdateMovementDto } from './dto/update-movement.dto';
+import { CreateSupplyWithInventoryDto } from './dto/create-supply-with-inventory.dto';
 
 @ApiTags('Inventory')
 @ApiBearerAuth()
@@ -14,61 +24,98 @@ import { UpdateProductDto } from './dto/update-product.dto';
 export class InventoryController {
   constructor(private readonly service: InventoryService) {}
 
-  // ── Stock ──
-
-  @Get('stock')
-  @ApiOperation({ summary: 'List stock lots' })
+  @Get('items')
+  @ApiOperation({ summary: 'List inventory items (supplies with stock)' })
   @ApiQuery({ name: 'warehouseId', required: false })
-  @ApiQuery({ name: 'productId', required: false })
-  findStock(
+  @ApiQuery({ name: 'isActive', required: false })
+  findItems(
     @Query('warehouseId') warehouseId?: string,
-    @Query('productId') productId?: string,
+    @Query('isActive') isActive?: string,
   ) {
-    return this.service.findStock({ warehouseId, productId });
+    return this.service.findSupplyItems({
+      warehouseId,
+      isActive: isActive === undefined ? undefined : isActive === 'true',
+    });
   }
 
-  // ── Movements ──
+  @Get('items/:supplyId')
+  @ApiOperation({ summary: 'Get supply inventory detail' })
+  findItem(@Param('supplyId') supplyId: string) {
+    return this.service.findSupplyItem(supplyId);
+  }
+
+  @Get('items/:supplyId/movements')
+  @ApiOperation({ summary: 'List movements for a supply' })
+  @ApiQuery({ name: 'warehouseId', required: false })
+  @ApiQuery({ name: 'isActive', required: false })
+  findSupplyMovements(
+    @Param('supplyId') supplyId: string,
+    @Query('warehouseId') warehouseId?: string,
+    @Query('isActive') isActive?: string,
+  ) {
+    return this.service.findMovements({
+      supplyId,
+      warehouseId,
+      isActive: isActive === undefined ? undefined : isActive === 'true',
+    });
+  }
+
+  @Post('supplies')
+  @ApiOperation({ summary: 'Register new supply (optional initial stock adjustment)' })
+  createSupply(
+    @Body() dto: CreateSupplyWithInventoryDto,
+    @CurrentUser() user: { id: string },
+  ) {
+    return this.service.createSupplyWithInventory(dto, user.id);
+  }
 
   @Get('movements')
   @ApiOperation({ summary: 'List inventory movements' })
+  @ApiQuery({ name: 'supplyId', required: false })
   @ApiQuery({ name: 'warehouseId', required: false })
-  @ApiQuery({ name: 'productId', required: false })
   @ApiQuery({ name: 'movementType', required: false })
-  @ApiQuery({ name: 'dateFrom', required: false })
-  @ApiQuery({ name: 'dateTo', required: false })
+  @ApiQuery({ name: 'isActive', required: false })
   findMovements(
+    @Query('supplyId') supplyId?: string,
     @Query('warehouseId') warehouseId?: string,
-    @Query('productId') productId?: string,
     @Query('movementType') movementType?: string,
-    @Query('dateFrom') dateFrom?: string,
-    @Query('dateTo') dateTo?: string,
+    @Query('isActive') isActive?: string,
   ) {
-    return this.service.findMovements({ warehouseId, productId, movementType, dateFrom, dateTo });
+    return this.service.findMovements({
+      supplyId,
+      warehouseId,
+      movementType,
+      isActive: isActive === undefined ? undefined : isActive === 'true',
+    });
+  }
+
+  @Get('movements/:id')
+  @ApiOperation({ summary: 'Get movement by id' })
+  findMovement(@Param('id') id: string) {
+    return this.service.findMovement(id);
   }
 
   @Post('movements')
-  @ApiOperation({ summary: 'Create inventory movement' })
-  createMovement(@Body() dto: CreateMovementDto, @CurrentUser() user: any) {
+  @ApiOperation({ summary: 'Create inventory movement (adjustment, in/out)' })
+  createMovement(@Body() dto: CreateMovementDto, @CurrentUser() user: { id: string }) {
     return this.service.createMovement(dto, user.id);
   }
 
-  // ── Products ──
-
-  @Get('products')
-  @ApiOperation({ summary: 'List products' })
-  findProducts() {
-    return this.service.findProducts();
+  @Patch('movements/:id')
+  @ApiOperation({ summary: 'Update inventory movement' })
+  updateMovement(@Param('id') id: string, @Body() dto: UpdateMovementDto) {
+    return this.service.updateMovement(id, dto);
   }
 
-  @Post('products')
-  @ApiOperation({ summary: 'Create product' })
-  createProduct(@Body() dto: CreateProductDto, @CurrentUser() user: any) {
-    return this.service.createProduct(dto, user.id);
+  @Post('movements/:id/deactivate')
+  @ApiOperation({ summary: 'Deactivate movement and reverse stock' })
+  deactivateMovement(@Param('id') id: string) {
+    return this.service.deactivateMovement(id);
   }
 
-  @Patch('products/:id')
-  @ApiOperation({ summary: 'Update product' })
-  updateProduct(@Param('id') id: string, @Body() dto: UpdateProductDto) {
-    return this.service.updateProduct(id, dto);
+  @Delete('movements/:id')
+  @ApiOperation({ summary: 'Delete deactivated movement' })
+  removeMovement(@Param('id') id: string) {
+    return this.service.removeMovement(id);
   }
 }

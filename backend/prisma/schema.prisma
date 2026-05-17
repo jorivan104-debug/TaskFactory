@@ -327,6 +327,8 @@ model Supply {
   unitOfMeasure    UnitOfMeasure   @relation(fields: [unitOfMeasureId], references: [id])
   garmentReferences GarmentReference[] @relation("FabricSupply")
   purchaseItems    SupplyPurchaseOrderItem[]
+  stockLots        InventoryStockLot[]
+  movements        InventoryMovement[]
 
   @@map("supplies")
 }
@@ -679,7 +681,8 @@ model Product {
 model InventoryStockLot {
   id              String   @id @default(uuid()) @db.Uuid
   warehouseId     String   @map("warehouse_id") @db.Uuid
-  productId       String   @map("product_id") @db.Uuid
+  productId       String?  @map("product_id") @db.Uuid
+  supplyId        String?  @map("supply_id") @db.Uuid
   lotCode         String?  @map("lot_code") @db.VarChar(64)
   serialCode      String?  @map("serial_code") @db.VarChar(128)
   quantityOnHand  Decimal  @map("quantity_on_hand") @db.Decimal(18, 4)
@@ -690,16 +693,19 @@ model InventoryStockLot {
 
   createdBy     User          @relation("StockLotCreator", fields: [createdByUserId], references: [id])
   warehouse     Warehouse     @relation(fields: [warehouseId], references: [id])
-  product       Product       @relation(fields: [productId], references: [id])
+  product       Product?      @relation(fields: [productId], references: [id])
+  supply        Supply?       @relation(fields: [supplyId], references: [id])
   unitOfMeasure UnitOfMeasure @relation(fields: [unitOfMeasureId], references: [id])
 
+  @@index([warehouseId, supplyId])
   @@map("inventory_stock_lots")
 }
 
 model InventoryMovement {
   id              String   @id @default(uuid()) @db.Uuid
   warehouseId     String   @map("warehouse_id") @db.Uuid
-  productId       String   @map("product_id") @db.Uuid
+  productId       String?  @map("product_id") @db.Uuid
+  supplyId        String?  @map("supply_id") @db.Uuid
   lotCode         String?  @map("lot_code") @db.VarChar(64)
   serialCode      String?  @map("serial_code") @db.VarChar(128)
   movementType    String   @map("movement_type") @db.VarChar(32)
@@ -707,15 +713,20 @@ model InventoryMovement {
   unitOfMeasureId String   @map("unit_of_measure_id") @db.Uuid
   referenceType   String?  @map("reference_type") @db.VarChar(64)
   referenceId     String?  @map("reference_id") @db.Uuid
+  notes           String?
+  isActive        Boolean  @default(true) @map("is_active")
   occurredAt      DateTime @map("occurred_at") @db.Timestamptz
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz
   createdByUserId String   @map("created_by_user_id") @db.Uuid
 
   createdBy     User          @relation("MovementCreator", fields: [createdByUserId], references: [id])
   warehouse     Warehouse     @relation(fields: [warehouseId], references: [id])
-  product       Product       @relation(fields: [productId], references: [id])
+  product       Product?      @relation(fields: [productId], references: [id])
+  supply        Supply?       @relation(fields: [supplyId], references: [id])
   unitOfMeasure UnitOfMeasure @relation(fields: [unitOfMeasureId], references: [id])
 
+  @@index([supplyId, occurredAt(sort: Desc)])
   @@map("inventory_movements")
 }
 

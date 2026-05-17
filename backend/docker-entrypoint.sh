@@ -15,6 +15,7 @@ fi
 
 # Migración que falló en staging por SQL inválido; el entrypoint puede marcarla rolled-back y reintentar.
 GARMENT_CATALOG_MIGRATION="20260518120000_garment_references_catalog"
+INVENTORY_SUPPLY_MIGRATION="20260518140000_inventory_supply_movements"
 MIGRATE_LOG=$(mktemp)
 trap 'rm -f "$MIGRATE_LOG"' EXIT
 
@@ -32,11 +33,19 @@ if [ "$SKIP_PRISMA_MIGRATE" = "1" ] || [ "$SKIP_PRISMA_MIGRATE" = "true" ]; then
 else
   echo "[taskfactory] ejecutando: npx prisma migrate deploy"
   if ! run_prisma_migrate_deploy; then
-    if grep -q 'P3009' "$MIGRATE_LOG" && grep -q "$GARMENT_CATALOG_MIGRATION" "$MIGRATE_LOG"; then
-      echo "[taskfactory] P3009: migración $GARMENT_CATALOG_MIGRATION fallida; marcando rolled-back y reintentando..."
-      npx prisma migrate resolve --rolled-back "$GARMENT_CATALOG_MIGRATION"
+    if grep -q 'P3009' "$MIGRATE_LOG"; then
+      if grep -q "$GARMENT_CATALOG_MIGRATION" "$MIGRATE_LOG"; then
+        echo "[taskfactory] P3009: $GARMENT_CATALOG_MIGRATION → rolled-back"
+        npx prisma migrate resolve --rolled-back "$GARMENT_CATALOG_MIGRATION"
+      elif grep -q "$INVENTORY_SUPPLY_MIGRATION" "$MIGRATE_LOG"; then
+        echo "[taskfactory] P3009: $INVENTORY_SUPPLY_MIGRATION → rolled-back"
+        npx prisma migrate resolve --rolled-back "$INVENTORY_SUPPLY_MIGRATION"
+      else
+        echo "[taskfactory] ERROR: migración fallida no reconocida para recuperación automática"
+        exit 1
+      fi
       echo "[taskfactory] reintentando: npx prisma migrate deploy"
-      run_prisma_migrate_deploy
+      run_prisma_migrate_deploy || exit 1
     else
       echo "[taskfactory] ERROR: prisma migrate deploy falló"
       exit 1

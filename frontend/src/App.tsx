@@ -6,6 +6,7 @@ import { DashboardPage } from './pages/DashboardPage';
 import { WorkOrdersPage } from './pages/WorkOrdersPage';
 import { GarmentReferencesPage } from './pages/GarmentReferencesPage';
 import { InventoryPage } from './pages/InventoryPage';
+import { InventorySupplyDetailPage } from './pages/InventorySupplyDetailPage';
 import { PurchasingPage } from './pages/PurchasingPage';
 import { InternalOrdersPage } from './pages/InternalOrdersPage';
 import { EmployeesPage } from './pages/EmployeesPage';
@@ -46,6 +47,7 @@ export default function App() {
             <Route path="/work-orders/:id" element={<WorkOrderDetailPage />} />
             <Route path="/garment-references" element={<GarmentReferencesPage />} />
             <Route path="/inventory" element={<InventoryPage />} />
+            <Route path="/inventory/:supplyId" element={<InventorySupplyDetailPage />} />
             <Route path="/purchasing" element={<PurchasingPage />} />
             <Route path="/internal-orders" element={<InternalOrdersPage />} />
             <Route path="/employees" element={<EmployeesPage />} />

@@ -6,10 +6,11 @@ import {
   IsUUID,
   MaxLength,
   Min,
+  ValidateIf,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
-export class CreateSupplyDto {
+export class CreateSupplyWithInventoryDto {
   @ApiProperty({ example: 'Tela algodón 100%' })
   @IsString()
   @IsNotEmpty()
@@ -45,4 +46,21 @@ export class CreateSupplyDto {
   @IsNumber()
   @Min(0)
   purchaseUnitPrice?: number;
+
+  @ApiPropertyOptional({
+    description: 'Si se indica almacén y cantidad, crea un movimiento de ajuste inicial',
+  })
+  @IsOptional()
+  @IsUUID()
+  warehouseId?: string;
+
+  @ApiPropertyOptional({ example: 0 })
+  @ValidateIf((o) => o.warehouseId != null && o.warehouseId !== '')
+  @IsNumber()
+  initialQuantity?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  initialNotes?: string;
 }
