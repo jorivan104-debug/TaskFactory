@@ -5,13 +5,7 @@ export class CreateSizeDto {
   @ApiProperty({ example: 'M' })
   @IsString()
   @IsNotEmpty()
-  @MaxLength(32)
-  code: string;
-
-  @ApiProperty({ example: 'Medium' })
-  @IsString()
-  @IsNotEmpty()
-  @MaxLength(255)
+  @MaxLength(64)
   name: string;
 
   @ApiPropertyOptional({ example: 3 })

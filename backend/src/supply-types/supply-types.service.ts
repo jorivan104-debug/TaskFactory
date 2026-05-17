@@ -1,6 +1,6 @@
 // @ts-nocheck
 
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateSupplyTypeDto } from './dto/create-supply-type.dto';
 import { UpdateSupplyTypeDto } from './dto/update-supply-type.dto';
@@ -21,7 +21,12 @@ export class SupplyTypesService {
 
   create(dto: CreateSupplyTypeDto, userId: string) {
     return this.prisma.supplyType.create({
-      data: { ...dto, createdByUserId: userId },
+      data: {
+        code: dto.code,
+        name: dto.name,
+        sortOrder: dto.sortOrder,
+        createdByUserId: userId,
+      },
     });
   }
 
@@ -32,9 +37,10 @@ export class SupplyTypesService {
 
   async remove(id: string) {
     await this.findOne(id);
-    return this.prisma.supplyType.update({
-      where: { id },
-      data: { isActive: false },
-    });
+    const supplies = await this.prisma.supply.count({ where: { supplyTypeId: id } });
+    if (supplies > 0) {
+      throw new ConflictException('Cannot delete supply type in use');
+    }
+    return this.prisma.supplyType.delete({ where: { id } });
   }
 }

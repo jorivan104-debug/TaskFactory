@@ -10,7 +10,9 @@ export class SizesService {
   constructor(private readonly prisma: PrismaService) {}
 
   findAll() {
-    return this.prisma.size.findMany({ orderBy: { sortOrder: 'asc' } });
+    return this.prisma.size.findMany({
+      orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+    });
   }
 
   async findOne(id: string) {
@@ -21,7 +23,11 @@ export class SizesService {
 
   create(dto: CreateSizeDto, userId: string) {
     return this.prisma.size.create({
-      data: { ...dto, createdByUserId: userId },
+      data: {
+        name: dto.name,
+        sortOrder: dto.sortOrder,
+        createdByUserId: userId,
+      },
     });
   }
 

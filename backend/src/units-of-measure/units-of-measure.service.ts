@@ -1,6 +1,6 @@
 // @ts-nocheck
 
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUnitOfMeasureDto } from './dto/create-unit-of-measure.dto';
 import { UpdateUnitOfMeasureDto } from './dto/update-unit-of-measure.dto';
@@ -21,7 +21,11 @@ export class UnitsOfMeasureService {
 
   create(dto: CreateUnitOfMeasureDto, userId: string) {
     return this.prisma.unitOfMeasure.create({
-      data: { ...dto, createdByUserId: userId },
+      data: {
+        code: dto.code,
+        name: dto.name,
+        createdByUserId: userId,
+      },
     });
   }
 
@@ -32,9 +36,10 @@ export class UnitsOfMeasureService {
 
   async remove(id: string) {
     await this.findOne(id);
-    return this.prisma.unitOfMeasure.update({
-      where: { id },
-      data: { isActive: false },
-    });
+    const supplies = await this.prisma.supply.count({ where: { unitOfMeasureId: id } });
+    if (supplies > 0) {
+      throw new ConflictException('Cannot delete unit of measure in use by supplies');
+    }
+    return this.prisma.unitOfMeasure.delete({ where: { id } });
   }
 }

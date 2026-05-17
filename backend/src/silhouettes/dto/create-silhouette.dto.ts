@@ -2,20 +2,24 @@ import { IsNotEmpty, IsOptional, IsString, IsUUID, MaxLength } from 'class-valid
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateSilhouetteDto {
-  @ApiProperty({ example: 'SH-001' })
-  @IsString()
-  @IsNotEmpty()
-  @MaxLength(32)
-  code: string;
-
   @ApiProperty({ example: 'T-Shirt' })
   @IsString()
   @IsNotEmpty()
   @MaxLength(255)
   name: string;
 
+  @ApiProperty()
+  @IsUUID()
+  silhouetteCategoryId: string;
+
   @ApiPropertyOptional()
   @IsOptional()
-  @IsUUID()
-  silhouetteCategoryId?: string;
+  @IsString()
+  @MaxLength(32)
+  gender?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  description?: string;
 }

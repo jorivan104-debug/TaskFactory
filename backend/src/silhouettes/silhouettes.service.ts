@@ -1,6 +1,6 @@
 // @ts-nocheck
 
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateSilhouetteCategoryDto } from './dto/create-silhouette-category.dto';
 import { UpdateSilhouetteCategoryDto } from './dto/update-silhouette-category.dto';
@@ -68,7 +68,13 @@ export class SilhouettesService {
 
   create(dto: CreateSilhouetteDto, userId: string) {
     return this.prisma.silhouette.create({
-      data: { ...dto, createdByUserId: userId },
+      data: {
+        name: dto.name,
+        silhouetteCategoryId: dto.silhouetteCategoryId,
+        gender: dto.gender,
+        description: dto.description,
+        createdByUserId: userId,
+      },
     });
   }
 
@@ -79,9 +85,10 @@ export class SilhouettesService {
 
   async remove(id: string) {
     await this.findOne(id);
-    return this.prisma.silhouette.update({
-      where: { id },
-      data: { isActive: false },
-    });
+    const refs = await this.prisma.garmentReference.count({ where: { silhouetteId: id } });
+    if (refs > 0) {
+      throw new ConflictException('Cannot delete silhouette with garment references');
+    }
+    return this.prisma.silhouette.delete({ where: { id } });
   }
 }

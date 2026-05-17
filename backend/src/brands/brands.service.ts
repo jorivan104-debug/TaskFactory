@@ -20,14 +20,30 @@ export class BrandsService {
   }
 
   create(dto: CreateBrandDto, userId: string) {
+    const { nextReferenceSequence, ...rest } = dto;
     return this.prisma.brand.create({
-      data: { ...dto, createdByUserId: userId },
+      data: {
+        ...rest,
+        createdByUserId: userId,
+        ...(nextReferenceSequence !== undefined && {
+          nextReferenceSequence: BigInt(nextReferenceSequence),
+        }),
+      },
     });
   }
 
   async update(id: string, dto: UpdateBrandDto) {
     await this.findOne(id);
-    return this.prisma.brand.update({ where: { id }, data: dto });
+    const { nextReferenceSequence, ...rest } = dto;
+    return this.prisma.brand.update({
+      where: { id },
+      data: {
+        ...rest,
+        ...(nextReferenceSequence !== undefined && {
+          nextReferenceSequence: BigInt(nextReferenceSequence),
+        }),
+      },
+    });
   }
 
   async remove(id: string) {

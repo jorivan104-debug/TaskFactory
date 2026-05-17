@@ -101,7 +101,11 @@ export const brandsConfig: CatalogCrudConfig = {
   columns: [
     { key: 'name', header: 'Nombre' },
     { key: 'abbreviation', header: 'Abreviatura' },
-    { key: 'nextReferenceSequence', header: 'Sig. referencia' },
+    {
+      key: 'nextReferenceSequence',
+      header: 'Sig. referencia',
+      render: (row) => String(row.nextReferenceSequence ?? '1'),
+    },
   ],
   fields: [
     { name: 'name', label: 'Nombre', type: 'text', required: true },
@@ -126,7 +130,6 @@ export function buildSilhouettesConfig(
     apiPath: '/silhouettes',
     entityLabel: 'silueta',
     columns: [
-      { key: 'code', header: 'Código' },
       { key: 'name', header: 'Nombre' },
       {
         key: 'silhouetteCategory',
@@ -136,20 +139,18 @@ export function buildSilhouettesConfig(
           return cat?.name ?? '—';
         },
       },
-      activeColumn,
     ],
     fields: [
-      { name: 'code', label: 'Código', type: 'text', required: true },
       { name: 'name', label: 'Nombre', type: 'text', required: true },
       {
         name: 'silhouetteCategoryId',
         label: 'Categoría',
         type: 'select',
+        required: true,
         options: categoryOptions,
       },
     ],
     mapRowToForm: (row) => ({
-      code: String(row.code ?? ''),
       name: String(row.name ?? ''),
       silhouetteCategoryId: String((row.silhouetteCategoryId as string) ?? ''),
     }),
@@ -162,14 +163,12 @@ export const sizesConfig: CatalogCrudConfig = {
   apiPath: '/sizes',
   entityLabel: 'talla',
   columns: [
-    { key: 'code', header: 'Código' },
     { key: 'name', header: 'Nombre' },
     { key: 'sortOrder', header: 'Orden' },
     activeColumn,
   ],
   fields: [
-    { name: 'code', label: 'Código', type: 'text', required: true },
-    { name: 'name', label: 'Nombre', type: 'text', required: true },
+    { name: 'name', label: 'Nombre', type: 'text', required: true, placeholder: 'M, L, XL…' },
     { name: 'sortOrder', label: 'Orden', type: 'number' },
   ],
 };
@@ -215,13 +214,12 @@ export const unitsOfMeasureConfig: CatalogCrudConfig = {
   apiPath: '/units-of-measure',
   entityLabel: 'unidad',
   columns: [
+    { key: 'code', header: 'Código' },
     { key: 'name', header: 'Nombre' },
-    { key: 'abbreviation', header: 'Abreviatura' },
-    activeColumn,
   ],
   fields: [
+    { name: 'code', label: 'Código', type: 'text', required: true, placeholder: 'm, kg, und' },
     { name: 'name', label: 'Nombre', type: 'text', required: true },
-    { name: 'abbreviation', label: 'Abreviatura', type: 'text', required: true },
   ],
 };
 
@@ -229,8 +227,16 @@ export const supplyTypesConfig: CatalogCrudConfig = {
   title: 'Tipos de insumo',
   apiPath: '/supply-types',
   entityLabel: 'tipo de insumo',
-  columns: [{ key: 'name', header: 'Nombre' }, activeColumn],
-  fields: [{ name: 'name', label: 'Nombre', type: 'text', required: true }],
+  columns: [
+    { key: 'code', header: 'Código' },
+    { key: 'name', header: 'Nombre' },
+    { key: 'sortOrder', header: 'Orden' },
+  ],
+  fields: [
+    { name: 'code', label: 'Código', type: 'text', required: true, placeholder: 'TELA' },
+    { name: 'name', label: 'Nombre', type: 'text', required: true },
+    { name: 'sortOrder', label: 'Orden', type: 'number' },
+  ],
 };
 
 export type SettingsCatalogId =
