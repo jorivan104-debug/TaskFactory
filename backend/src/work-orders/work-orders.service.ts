@@ -117,7 +117,7 @@ export class WorkOrdersService {
         ...dto,
         performedAt: dto.performedAt ? new Date(dto.performedAt) : new Date(),
         workOrderId,
-        performedByUserId: userId,
+        createdByUserId: userId,
       },
     });
   }
