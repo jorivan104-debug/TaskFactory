@@ -1,5 +1,5 @@
-import { IsString, IsNotEmpty, IsInt, IsArray, Min, ValidateNested } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import { IsString, IsNotEmpty, IsInt, IsArray, Min, IsOptional, ValidateNested } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 
 export class SizeCurveItemDto {
@@ -13,10 +13,11 @@ export class SizeCurveItemDto {
   @Min(0)
   quantity: number;
 
-  @ApiProperty({ example: 1 })
+  @ApiPropertyOptional({ example: 1 })
+  @IsOptional()
   @IsInt()
   @Min(0)
-  sortOrder: number;
+  sortOrder?: number;
 }
 
 export class UpsertSizeCurveDto {

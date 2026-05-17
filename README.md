@@ -78,20 +78,89 @@ FRONTEND_URL=https://taskfactory.app-sprint.com
 ## Project Structure
 
 ```
-├── Cerebro/          # Business documentation (Obsidian)
-├── docs/             # Architecture decisions & contracts
-├── backend/          # NestJS API + Prisma
-├── frontend/         # React SPA (Vite + Tailwind)
-├── docker-compose.yml           # Dokploy: postgres + backend + frontend
-└── docker-compose.dokploy.yml   # Dokploy alternativo: api + web (DB externa)
+TaskFactory/
+├── Cerebro/                    # Documentación de negocio (Obsidian)
+│   ├── Acta de constitución del proyecto.md
+│   ├── Estructura de base de datos.md
+│   ├── Roadmap del proyecto.md
+│   └── ...
+├── docs/                       # ADR, contratos e implementación
+│   ├── 001-architecture-decision.md
+│   ├── 002-domain-gaps-resolution.md
+│   ├── 006-dokploy-deployment.md
+│   ├── 007-work-order-blueprints.md
+│   └── ...
+├── backend/                    # NestJS API + Prisma
+│   ├── prisma/
+│   │   ├── schema.prisma
+│   │   └── migrations/
+│   └── src/
+│       ├── auth/               # JWT + WorkOS AuthKit
+│       ├── work-sites/         # Plantas
+│       ├── warehouses/         # Almacenes
+│       ├── roles/
+│       ├── brands/
+│       ├── silhouettes/        # Siluetas + categorías
+│       ├── pantone-colors/
+│       ├── sizes/
+│       ├── units-of-measure/
+│       ├── supply-types/
+│       ├── work-order-types/   # Tipos de OT + blueprints
+│       ├── work-orders/        # OT (entidad principal) + motor de flujo + ref. + curva
+│       ├── garment-references/ # Catálogo Lexi (GET/PATCH)
+│       ├── employees/          # Personal + TaskAssignment
+│       ├── purchasing/         # Compras de insumo
+│       ├── inventory/
+│       ├── internal-orders/
+│       ├── shipments/
+│       ├── suppliers/
+│       ├── supplies/
+│       ├── accounting-sync/
+│       └── ...
+├── frontend/                   # React SPA (Vite + Tailwind)
+│   └── src/
+│       ├── pages/
+│       │   ├── settings/       # CRUD catálogos + editor blueprint (React Flow)
+│       │   ├── WorkOrdersPage.tsx
+│       │   ├── WorkOrderDetailPage.tsx
+│       │   └── GarmentReferencesPage.tsx  # Catálogo Lexi
+│       └── components/settings/  # CatalogCrudPage reutilizable
+├── docker-compose.yml          # Dokploy: postgres + backend + frontend
+└── docker-compose.dokploy.yml  # API + web (DB externa)
 ```
+
+## Documentación técnica (`docs/`)
+
+| Documento | Contenido |
+|-----------|-----------|
+| [001-architecture-decision.md](docs/001-architecture-decision.md) | Stack y decisiones de arquitectura |
+| [002-domain-gaps-resolution.md](docs/002-domain-gaps-resolution.md) | Entidades de dominio y decisiones abiertas |
+| [003-lexi-contract.md](docs/003-lexi-contract.md) | Contrato integración Lexi |
+| [004-accounting-sync-contract.md](docs/004-accounting-sync-contract.md) | Sincronización contable |
+| [005-test-plan.md](docs/005-test-plan.md) | Plan de pruebas y smoke tests |
+| [006-dokploy-deployment.md](docs/006-dokploy-deployment.md) | Despliegue Dokploy / Traefik |
+| [007-work-order-blueprints.md](docs/007-work-order-blueprints.md) | Tipos de OT, blueprints, motor de estados |
+
+Modelo relacional detallado (tablas y columnas): **[Cerebro/Estructura de base de datos.md](Cerebro/Estructura%20de%20base%20de%20datos.md)**.
+
+## Estado de implementación (resumen)
+
+| Área | Estado |
+|------|--------|
+| Auth (JWT + WorkOS opcional) | Implementado |
+| Configuración — catálogos CRUD | Plantas, almacenes, roles, marcas, siluetas, tallas, colores, unidades/tipos insumo, **tipos de OT** |
+| Blueprints de flujo (canvas) | Editor React Flow + API publicar/borrador; motor en runtime de OT |
+| Órdenes de trabajo | Entidad principal: referencia de prenda 1:1, curva de tallas, transiciones, bitácora |
+| Referencias Lexi | Catálogo de ideas/solicitudes desde Lexi (webhook + UI solo lectura) |
+| Compras, inventario, etc. | API base / UI según módulo (ver roadmap) |
+| Despliegue staging | Dokploy + `taskfactory.app-sprint.com` |
 
 ## Tech Stack
 
 | Layer     | Technology               |
 |-----------|--------------------------|
-| Frontend  | React, Vite, TailwindCSS |
-| Backend   | NestJS, TypeScript       |
+| Frontend  | React 19, Vite, TailwindCSS, TanStack Query, React Router, **@xyflow/react** (editor blueprint) |
+| Backend   | NestJS, TypeScript, Prisma |
 | Database  | PostgreSQL, Prisma       |
-| Queue     | BullMQ, Redis            |
-| Deploy    | Docker, Dokploy          |
+| Queue     | BullMQ, Redis (previsto)   |
+| Deploy    | Docker, Dokploy, Traefik |

@@ -21,7 +21,6 @@ model WorkSite {
 
   createdBy  User        @relation("WorkSiteCreator", fields: [createdByUserId], references: [id])
   warehouses Warehouse[]
-  productionOrders ProductionOrder[]
   workOrders WorkOrder[]
   userRoles  UserRole[]
 
@@ -80,13 +79,11 @@ model User {
   createdSizes         Size[]                  @relation("SizeCreator")
   createdUnitsOfMeasure UnitOfMeasure[]        @relation("UomCreator")
   createdGarmentRefs   GarmentReference[]      @relation("GarmentRefCreator")
-  createdDevelopments  Development[]           @relation("DevelopmentCreator")
-  createdProductionOrders ProductionOrder[]    @relation("POCreator")
-  closedProductionOrders  ProductionOrder[]    @relation("POCloser")
   createdWorkOrders    WorkOrder[]             @relation("WOCreator")
+  closedWorkOrders     WorkOrder[]             @relation("WOCloser")
   createdWOColors      WorkOrderPantoneColor[] @relation("WOColorCreator")
   createdWOLogs        WorkOrderLog[]          @relation("WOLogCreator")
-  createdSizeCurves    ProductionOrderSizeCurveItem[] @relation("SizeCurveCreator")
+  createdSizeCurves    WorkOrderSizeCurveItem[] @relation("SizeCurveCreator")
   createdRoles         Role[]                  @relation("RoleCreator")
   createdUserRoles     UserRole[]              @relation("UserRoleCreator")
 
@@ -237,8 +234,8 @@ model Size {
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
   createdByUserId String @map("created_by_user_id") @db.Uuid
 
-  createdBy  User                             @relation("SizeCreator", fields: [createdByUserId], references: [id])
-  sizeCurves ProductionOrderSizeCurveItem[]
+  createdBy  User                        @relation("SizeCreator", fields: [createdByUserId], references: [id])
+  sizeCurves WorkOrderSizeCurveItem[]
 
   @@map("sizes")
 }
@@ -300,7 +297,7 @@ model Supplier {
   purchaseOrders  SupplyPurchaseOrder[]
   invoices        SupplierInvoice[]
   payments        SupplierPayment[]
-  productionOrders ProductionOrder[]     @relation("PatternSupplier")
+  workOrders      WorkOrder[]            @relation("PatternSupplier")
 
   @@map("suppliers")
 }
@@ -531,120 +528,89 @@ model WorkOrderBlueprint {
 
 // ─── PRODUCTION ───────────────────────────────────────────
 
-model Development {
-  id              String   @id @default(uuid()) @db.Uuid
-  lexiExternalId  String?  @unique @map("lexi_external_id") @db.VarChar(128)
-  title           String?  @db.VarChar(255)
-  imageUrl        String?  @map("image_url")
-  attributesJson  Json?    @map("attributes_json")
-  status          String   @db.VarChar(32)
-  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz
-  createdByUserId String   @map("created_by_user_id") @db.Uuid
-
-  createdBy        User              @relation("DevelopmentCreator", fields: [createdByUserId], references: [id])
-  productionOrders ProductionOrder[]
-
-  @@map("developments")
-}
-
-model ProductionOrder {
-  id                           String    @id @default(uuid()) @db.Uuid
-  code                         String    @unique @db.VarChar(64)
-  workSiteId                   String    @map("work_site_id") @db.Uuid
-  developmentId                String?   @map("development_id") @db.Uuid
-  productionType               String    @map("production_type") @db.VarChar(32)
-  patternSupplierId            String?   @map("pattern_supplier_id") @db.Uuid
-  patterningDays               Int?      @map("patterning_days")
-  designInstructions           String?   @map("design_instructions")
-  designInstructionsUpdatedAt  DateTime? @map("design_instructions_updated_at") @db.Timestamptz
-  designAttachmentsJson        Json?     @map("design_attachments_json")
-  status                       String    @db.VarChar(32)
-  closedAt                     DateTime? @map("closed_at") @db.Timestamptz
-  closedByUserId               String?   @map("closed_by_user_id") @db.Uuid
-  createdAt                    DateTime  @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt                    DateTime  @updatedAt @map("updated_at") @db.Timestamptz
-  createdByUserId              String    @map("created_by_user_id") @db.Uuid
-
-  createdBy        User             @relation("POCreator", fields: [createdByUserId], references: [id])
-  closedBy         User?            @relation("POCloser", fields: [closedByUserId], references: [id])
-  workSite         WorkSite         @relation(fields: [workSiteId], references: [id])
-  development      Development?     @relation(fields: [developmentId], references: [id])
-  patternSupplier  Supplier?        @relation("PatternSupplier", fields: [patternSupplierId], references: [id])
-  garmentReference GarmentReference?
-  workOrders       WorkOrder[]
-  sizeCurve        ProductionOrderSizeCurveItem[]
-
-  @@map("production_orders")
-}
-
 model GarmentReference {
-  id                   String   @id @default(uuid()) @db.Uuid
-  productionOrderId    String   @unique @map("production_order_id") @db.Uuid
-  brandId              String   @map("brand_id") @db.Uuid
-  silhouetteId         String   @map("silhouette_id") @db.Uuid
-  fabricSupplyId       String   @map("fabric_supply_id") @db.Uuid
-  pantoneColorId       String?  @map("pantone_color_id") @db.Uuid
-  garmentImageUrl1     String?  @map("garment_image_url_1")
-  garmentImageUrl2     String?  @map("garment_image_url_2")
-  garmentImageUrl3     String?  @map("garment_image_url_3")
-  cutGarmentsQty       Int?     @map("cut_garments_qty")
-  programmedGarmentsQty Int?    @map("programmed_garments_qty")
-  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt            DateTime @updatedAt @map("updated_at") @db.Timestamptz
-  createdByUserId      String   @map("created_by_user_id") @db.Uuid
-
-  createdBy       User            @relation("GarmentRefCreator", fields: [createdByUserId], references: [id])
-  productionOrder ProductionOrder @relation(fields: [productionOrderId], references: [id])
-  brand           Brand           @relation(fields: [brandId], references: [id])
-  silhouette      Silhouette      @relation(fields: [silhouetteId], references: [id])
-  fabricSupply    Supply          @relation("FabricSupply", fields: [fabricSupplyId], references: [id])
-  pantoneColor    PantoneColor?   @relation(fields: [pantoneColorId], references: [id])
-
-  @@map("garment_references")
-}
-
-model ProductionOrderSizeCurveItem {
-  id                String   @id @default(uuid()) @db.Uuid
-  productionOrderId String   @map("production_order_id") @db.Uuid
-  sizeId            String   @map("size_id") @db.Uuid
-  quantity          Decimal  @db.Decimal(18, 4)
-  sortOrder         Int?     @map("sort_order")
-  notes             String?
-  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz
-  createdByUserId   String   @map("created_by_user_id") @db.Uuid
-
-  createdBy       User            @relation("SizeCurveCreator", fields: [createdByUserId], references: [id])
-  productionOrder ProductionOrder @relation(fields: [productionOrderId], references: [id])
-  size            Size            @relation(fields: [sizeId], references: [id])
-
-  @@unique([productionOrderId, sizeId])
-  @@map("production_order_size_curve_items")
-}
-
-model WorkOrder {
   id                    String   @id @default(uuid()) @db.Uuid
-  productionOrderId     String   @map("production_order_id") @db.Uuid
-  workOrderTypeId       String?  @map("work_order_type_id") @db.Uuid
-  workSiteId            String?  @map("work_site_id") @db.Uuid
-  code                  String   @db.VarChar(64)
+  workOrderId           String?  @unique @map("work_order_id") @db.Uuid
+  source                String   @db.VarChar(32)
+  lexiExternalId        String?  @unique @map("lexi_external_id") @db.VarChar(128)
   title                 String?  @db.VarChar(255)
-  status                String   @db.VarChar(32)
-  currentStateKey       String?  @map("current_state_key") @db.VarChar(128)
-  blueprintVersion      Int?     @map("blueprint_version")
-  blueprintSnapshotJson Json?    @map("blueprint_snapshot_json")
+  status                String   @default("draft") @db.VarChar(32)
+  attributesJson        Json?    @map("attributes_json")
+  imageUrl              String?  @map("image_url")
+  brandId               String?  @map("brand_id") @db.Uuid
+  silhouetteId          String?  @map("silhouette_id") @db.Uuid
+  fabricSupplyId        String?  @map("fabric_supply_id") @db.Uuid
+  pantoneColorId        String?  @map("pantone_color_id") @db.Uuid
+  garmentImageUrl1      String?  @map("garment_image_url_1")
+  garmentImageUrl2      String?  @map("garment_image_url_2")
+  garmentImageUrl3      String?  @map("garment_image_url_3")
+  cutGarmentsQty        Int?     @map("cut_garments_qty")
+  programmedGarmentsQty Int?     @map("programmed_garments_qty")
   createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz
   updatedAt             DateTime @updatedAt @map("updated_at") @db.Timestamptz
   createdByUserId       String   @map("created_by_user_id") @db.Uuid
 
-  createdBy       User                     @relation("WOCreator", fields: [createdByUserId], references: [id])
-  productionOrder ProductionOrder          @relation(fields: [productionOrderId], references: [id])
-  workOrderType   WorkOrderType?           @relation(fields: [workOrderTypeId], references: [id])
-  workSite        WorkSite?                @relation(fields: [workSiteId], references: [id])
-  pantoneColors   WorkOrderPantoneColor[]
-  logs            WorkOrderLog[]
-  taskAssignments TaskAssignment[]
+  createdBy    User          @relation("GarmentRefCreator", fields: [createdByUserId], references: [id])
+  workOrder    WorkOrder?    @relation(fields: [workOrderId], references: [id])
+  brand        Brand?        @relation(fields: [brandId], references: [id])
+  silhouette   Silhouette?   @relation(fields: [silhouetteId], references: [id])
+  fabricSupply Supply?       @relation("FabricSupply", fields: [fabricSupplyId], references: [id])
+  pantoneColor PantoneColor? @relation(fields: [pantoneColorId], references: [id])
+
+  @@map("garment_references")
+}
+
+model WorkOrderSizeCurveItem {
+  id              String   @id @default(uuid()) @db.Uuid
+  workOrderId     String   @map("work_order_id") @db.Uuid
+  sizeId          String   @map("size_id") @db.Uuid
+  quantity        Decimal  @db.Decimal(18, 4)
+  sortOrder       Int?     @map("sort_order")
+  notes           String?
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  createdByUserId String   @map("created_by_user_id") @db.Uuid
+
+  createdBy  User      @relation("SizeCurveCreator", fields: [createdByUserId], references: [id])
+  workOrder  WorkOrder @relation(fields: [workOrderId], references: [id])
+  size       Size      @relation(fields: [sizeId], references: [id])
+
+  @@unique([workOrderId, sizeId])
+  @@map("work_order_size_curve_items")
+}
+
+model WorkOrder {
+  id                          String    @id @default(uuid()) @db.Uuid
+  workOrderTypeId             String?   @map("work_order_type_id") @db.Uuid
+  workSiteId                  String    @map("work_site_id") @db.Uuid
+  code                        String    @unique @db.VarChar(64)
+  title                       String?   @db.VarChar(255)
+  status                      String    @db.VarChar(32)
+  productionType              String?   @map("production_type") @db.VarChar(32)
+  patternSupplierId           String?   @map("pattern_supplier_id") @db.Uuid
+  patterningDays              Int?      @map("patterning_days")
+  designInstructions          String?   @map("design_instructions")
+  designInstructionsUpdatedAt DateTime? @map("design_instructions_updated_at") @db.Timestamptz
+  designAttachmentsJson       Json?     @map("design_attachments_json")
+  closedAt                    DateTime? @map("closed_at") @db.Timestamptz
+  closedByUserId              String?   @map("closed_by_user_id") @db.Uuid
+  currentStateKey             String?   @map("current_state_key") @db.VarChar(128)
+  blueprintVersion            Int?      @map("blueprint_version")
+  blueprintSnapshotJson       Json?     @map("blueprint_snapshot_json")
+  createdAt                   DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt                   DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  createdByUserId             String    @map("created_by_user_id") @db.Uuid
+
+  createdBy        User                     @relation("WOCreator", fields: [createdByUserId], references: [id])
+  closedBy         User?                    @relation("WOCloser", fields: [closedByUserId], references: [id])
+  workOrderType    WorkOrderType?           @relation(fields: [workOrderTypeId], references: [id])
+  workSite         WorkSite                 @relation(fields: [workSiteId], references: [id])
+  patternSupplier  Supplier?                @relation("PatternSupplier", fields: [patternSupplierId], references: [id])
+  garmentReference GarmentReference?
+  sizeCurve        WorkOrderSizeCurveItem[]
+  pantoneColors    WorkOrderPantoneColor[]
+  logs             WorkOrderLog[]
+  taskAssignments  TaskAssignment[]
 
   @@map("work_orders")
 }

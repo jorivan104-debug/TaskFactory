@@ -14,10 +14,9 @@ import { UnitsOfMeasureModule } from './units-of-measure/units-of-measure.module
 import { SuppliersModule } from './suppliers/suppliers.module';
 import { SuppliesModule } from './supplies/supplies.module';
 import { SupplyTypesModule } from './supply-types/supply-types.module';
-import { DevelopmentsModule } from './developments/developments.module';
-import { ProductionOrdersModule } from './production-orders/production-orders.module';
 import { WorkOrderTypesModule } from './work-order-types/work-order-types.module';
 import { WorkOrdersModule } from './work-orders/work-orders.module';
+import { GarmentReferencesModule } from './garment-references/garment-references.module';
 import { InventoryModule } from './inventory/inventory.module';
 import { PurchasingModule } from './purchasing/purchasing.module';
 import { InternalOrdersModule } from './internal-orders/internal-orders.module';
@@ -45,10 +44,9 @@ import { WebhooksModule } from './webhooks/webhooks.module';
     SuppliersModule,
     SuppliesModule,
     SupplyTypesModule,
-    DevelopmentsModule,
-    ProductionOrdersModule,
     WorkOrderTypesModule,
     WorkOrdersModule,
+    GarmentReferencesModule,
     InventoryModule,
     PurchasingModule,
     InternalOrdersModule,

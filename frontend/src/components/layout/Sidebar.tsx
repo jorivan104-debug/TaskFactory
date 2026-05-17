@@ -1,7 +1,6 @@
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard,
-  Factory,
   Package,
   ShoppingCart,
   ClipboardList,
@@ -18,9 +17,8 @@ import clsx from 'clsx';
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
-  { name: 'Producción', href: '/production', icon: Factory },
-  { name: 'Desarrollos', href: '/developments', icon: Palette },
   { name: 'Órdenes de trabajo', href: '/work-orders', icon: ClipboardList },
+  { name: 'Referencias Lexi', href: '/garment-references', icon: Palette },
   { name: 'Inventario', href: '/inventory', icon: Package },
   { name: 'Compras', href: '/purchasing', icon: ShoppingCart },
   { name: 'Pedidos internos', href: '/internal-orders', icon: FileText },

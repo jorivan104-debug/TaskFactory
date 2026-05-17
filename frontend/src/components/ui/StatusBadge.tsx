@@ -49,7 +49,7 @@ const statusLabels: Record<string, string> = {
   sample_complete: 'Muestra completa',
   archived: 'Archivado',
   development: 'Desarrollo',
-  batch_production: 'Producción en lotes',
+  batch_production: 'Lotes',
 };
 
 interface StatusBadgeProps {

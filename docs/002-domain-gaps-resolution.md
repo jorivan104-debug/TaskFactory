@@ -1,7 +1,8 @@
 # Domain Gaps Resolution
 
-**Date:** 2026-05-06
-**Related:** Pregutas de la AI.md (questions 19–20, S1–S4)
+**Date:** 2026-05-06  
+**Last updated:** 2026-05-17  
+**Related:** Pregutas de la AI.md (questions 19–20, S1–S4), [007-work-order-blueprints.md](./007-work-order-blueprints.md)
 
 ## Question 19 — Minimum entity list
 
@@ -20,7 +21,9 @@ Based on the existing ER document and business flows described in the charter, t
 `Supplier`, `Supply` (raw material), `SupplyPurchaseOrder`, `SupplyPurchaseOrderItem`, `SupplyPurchaseReceipt`, `SupplyPurchaseReceiptItem`, `SupplierInvoice`, `SupplierInvoiceLine`, `SupplierPayment`, `SupplierPaymentAllocation`
 
 ### Production
-`Development` (from Lexi), `ProductionOrder`, `GarmentReference` (1:1 with PO), `ProductionOrderSizeCurveItem`, `WorkOrder`, `WorkOrderPantoneColor`, `WorkOrderLog`
+`WorkOrderType`, `WorkOrderBlueprint`, `WorkOrder` (main production entity), `GarmentReference` (dual-source: `lexi_catalog` or `work_order`, 1:1 with OT), `WorkOrderSizeCurveItem`, `WorkOrderPantoneColor`, `WorkOrderLog`
+
+**Simplified model (v0.9):** `Development` and `ProductionOrder` were removed. The work order is now the main production entity, with planning fields (production type, pattern supplier, design instructions) and execution fields (blueprint, state, close). Lexi sends garment references as catalog entries (`source=lexi_catalog`) that are not linked to any work order. Each work order can have one operational garment reference (`source=work_order`).
 
 ### Products & inventory
 `Product` (finished goods + semi-finished), `InventoryStockLot`, `InventoryMovement`

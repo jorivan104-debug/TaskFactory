@@ -1,7 +1,8 @@
 # ADR-001: Architecture & Technology Stack
 
-**Status:** Accepted
-**Date:** 2026-05-06
+**Status:** Accepted  
+**Date:** 2026-05-06  
+**Last updated:** 2026-05-17  
 **Author:** Engineering (automated from plan)
 
 ## Context
@@ -35,12 +36,13 @@ TaskFactory is a greenfield multi-plant production management platform replacing
 
 ### Frontend: React + Vite + TailwindCSS
 
-- **Framework:** React 18+ with TypeScript
+- **Framework:** React 19 with TypeScript
 - **Build:** Vite
-- **Routing:** React Router v6
+- **Routing:** React Router v7
 - **State:** TanStack Query (server state) + Zustand (client state)
 - **Styling:** TailwindCSS with design tokens from brand spec (`#F3F9FF`, `#007BFF`, etc.)
-- **Components:** Headless UI + custom component library matching Concepto Grafico
+- **Components:** Headless UI + reusable `CatalogCrudPage` for settings catalogs
+- **Workflow editor:** `@xyflow/react` for work order blueprint canvas (`/settings/work-order-types/:id/blueprint`)
 - **Icons:** Lucide React (line style, rounded)
 
 ### Job Queue: BullMQ + Redis
@@ -61,6 +63,21 @@ TaskFactory is a greenfield multi-plant production management platform replacing
 - **Alternative compose:** `docker-compose.dokploy.yml` when PostgreSQL is hosted elsewhere (`DATABASE_URL` required)
 - Local development: manual Node processes or partial Docker (see root `README.md`)
 - Automated backups for PostgreSQL (operational; configure on server)
+
+### Work order blueprints (2026-05)
+
+- **Catalog:** `work_order_types` + `work_order_blueprints` (1:1), edited in settings, published after graph validation
+- **Runtime:** `BlueprintEngineService` in `work-orders` module executes declarative transition actions (`set_field`, `append_log`, `complete_open_tasks`) and optional `TaskAssignment` on state entry
+- **Immutability:** each `WorkOrder` stores `blueprint_snapshot_json` + `blueprint_version` at creation
+- **Spec:** [007-work-order-blueprints.md](./007-work-order-blueprints.md)
+
+### Simplified production model (2026-05-18)
+
+- **Removed:** `developments` and `production_orders` tables/modules
+- **Work order as main entity:** planning fields (production type, pattern supplier, design instructions) and execution fields (blueprint, state, close) all live on `work_orders`
+- **Garment references (dual-source):** `lexi_catalog` (from Lexi webhook, unlinked) and `work_order` (1:1 operational, created with OT)
+- **Size curve:** `work_order_size_curve_items` directly on the work order
+- **Lexi:** webhook still at `/webhooks/lexi/developments` for backward compatibility; data goes to `garment_references` table
 
 ## Consequences
 

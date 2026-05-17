@@ -3,9 +3,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AppLayout } from './components/layout/AppLayout';
 import { LoginPage } from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
-import { ProductionOrdersPage } from './pages/ProductionOrdersPage';
-import { DevelopmentsPage } from './pages/DevelopmentsPage';
 import { WorkOrdersPage } from './pages/WorkOrdersPage';
+import { GarmentReferencesPage } from './pages/GarmentReferencesPage';
 import { InventoryPage } from './pages/InventoryPage';
 import { PurchasingPage } from './pages/PurchasingPage';
 import { InternalOrdersPage } from './pages/InternalOrdersPage';
@@ -43,9 +42,9 @@ export default function App() {
             }
           >
             <Route path="/" element={<DashboardPage />} />
-            <Route path="/production" element={<ProductionOrdersPage />} />
-            <Route path="/developments" element={<DevelopmentsPage />} />
             <Route path="/work-orders" element={<WorkOrdersPage />} />
+            <Route path="/work-orders/:id" element={<WorkOrderDetailPage />} />
+            <Route path="/garment-references" element={<GarmentReferencesPage />} />
             <Route path="/inventory" element={<InventoryPage />} />
             <Route path="/purchasing" element={<PurchasingPage />} />
             <Route path="/internal-orders" element={<InternalOrdersPage />} />
@@ -54,7 +53,6 @@ export default function App() {
             <Route path="/accounting" element={<AccountingSyncPage />} />
             <Route path="/reports" element={<ReportsPage />} />
             <Route path="/suppliers" element={<SuppliersPage />} />
-            <Route path="/work-orders/:id" element={<WorkOrderDetailPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/settings/:catalogId" element={<SettingsCatalogRoute />} />
             <Route path="/settings/work-order-types/:typeId/blueprint" element={<WorkOrderBlueprintEditorPage />} />

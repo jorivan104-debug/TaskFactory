@@ -1,7 +1,7 @@
 ---
 Tipo: Modelo de datos (documentación)
 Fecha de Creación: 2026-05-06
-Version: 0.7 (borrador)
+Version: 0.9 (borrador)
 Autor: Jorge Ivan Caicedo Gutierrez
 Relacionado con: Acta de constitución del proyecto.md, Pregutas de la AI.md, Roadmap del proyecto.md
 ---
@@ -229,36 +229,13 @@ Catálogo maestro de tallas usado en la **curva de tallas** de cada orden de pro
 
 **Restricción:** `UNIQUE (name)` (case sensitivity según collation del motor; recomendado normalizar mayúsculas/minúsculas en aplicación si aplica).
 
-**Relaciones:** Referenciada por **`production_order_size_curve_items`**.
+**Relaciones:** Referenciada por **`work_order_size_curve_items`**.
 
 ---
 
-### I. Referencia (1:1 con orden de producción)
+### I. Referencia de prenda
 
-**Lógico:** Referencia · **Físico:** `garment_references`
-
-Una fila por **orden de producción**: relación **1:1** mediante `production_order_id` **único** y obligatorio.
-
-| Columna | Tipo | Obl. | Notas |
-|---------|------|------|--------|
-| `id` | UUID | Sí | PK |
-| `production_order_id` | UUID | Sí | FK → `production_orders`, **UNIQUE** (garantiza 1:1) |
-| `brand_id` | UUID | Sí | FK → `brands` |
-| `silhouette_id` | UUID | Sí | FK → `silhouettes` |
-| `fabric_supply_id` | UUID | Sí | FK → `supplies` (**insumo tipo Tela**) |
-| `pantone_color_id` | UUID | No | FK → `pantone_colors` (**color Pantone** principal de la referencia; pasar a obligatorio si negocio lo exige) |
-| `garment_image_url_1` | TEXT | No | **Imagen 1** de la prenda (frente, render, etc.) |
-| `garment_image_url_2` | TEXT | No | **Imagen 2** de la prenda |
-| `garment_image_url_3` | TEXT | No | **Imagen 3** de la prenda |
-| `cut_garments_qty` | INT | No | **Prendas cortadas** (entero; ajustar tipo si requiere decimales) |
-| `programmed_garments_qty` | INT | No | **Prendas programadas** |
-| `created_at` | TIMESTAMPTZ | Sí | |
-| `updated_at` | TIMESTAMPTZ | Sí | |
-| `created_by_user_id` | UUID | Sí | FK → `users` |
-
-**Relaciones:** `production_orders` (1:1), `brands`, `silhouettes`, `supplies` (tela), `pantone_colors` (color a nivel referencia, opcional).
-
-**Nota:** El color **por orden de trabajo** se modela con `work_order_pantone_colors` (puede convivir con el color en referencia: referencia = guía comercial, OT = detalle en planta).
+> Documentación movida a **§5** (dual-source: Lexi catálogo u OT operativa). La antigua tabla `garment_references` con `production_order_id` fue reemplazada por la versión con `work_order_id` + `source`.
 
 ---
 
@@ -509,70 +486,121 @@ Flujo documentado: **Orden de compra de insumos** → **Recibidos** (parciales o
 
 ---
 
-### 5. Desarrollo (origen Lexi)
+### 5. Referencia de prenda (dual-source: Lexi catálogo u OT operativa)
 
-**Lógico:** Desarrollo de prenda desde Lexi · **Físico:** `developments`
+**Lógico:** Referencia de prenda · **Físico:** `garment_references`
 
-| Columna | Tipo | Obl. | Notas |
-|---------|------|------|--------|
-| `id` | UUID | Sí | PK |
-| `lexi_external_id` | VARCHAR(128) | No | Idempotencia de webhooks |
-| `title` | VARCHAR(255) | No | |
-| `image_url` | TEXT | No | |
-| `attributes_json` | JSONB | No | |
-| `status` | VARCHAR(32) | Sí | |
-| `created_at` | TIMESTAMPTZ | Sí | |
-| `updated_at` | TIMESTAMPTZ | Sí | |
-| `created_by_user_id` | UUID | Sí | FK → `users` (usuario sistema o regla de carga) |
+Tabla unificada para dos orígenes:
 
----
-
-### 6. Orden de producción (OP)
-
-**Lógico:** Orden de producción · **Físico:** `production_orders`
+- **`lexi_catalog`**: solicitud/idea que llega de Lexi por webhook; no se vincula a ninguna OT. Campos de catálogo opcionales.
+- **`work_order`**: referencia operativa **1:1** con una `work_orders`. Campos de catálogo (marca, silueta, tela) normalmente obligatorios.
 
 | Columna | Tipo | Obl. | Notas |
 |---------|------|------|--------|
 | `id` | UUID | Sí | PK |
-| `code` | VARCHAR(64) | Sí | Número visible único |
-| `work_site_id` | UUID | Sí | FK → `work_sites` |
-| `development_id` | UUID | No | FK → `developments` |
-| `production_type` | VARCHAR(32) | Sí | **Tipo de producción** (lista cerrada): `development` = **Desarrollo**, `batch_production` = **Producción en lotes** (validar en app o `CHECK`) |
-| `pattern_supplier_id` | UUID | No | FK → **`suppliers`** — proveedor de **patronaje** (taller / servicio de patronaje asociado) |
-| `patterning_days` | INT | No | **Días en patronaje** (entero ≥ 0 o NULL si no aplica) |
-| `design_instructions` | TEXT | No | **Instrucciones de diseño** (texto libre) |
-| `design_instructions_updated_at` | TIMESTAMPTZ | No | **Última modificación** de las instrucciones de diseño (actualizar solo cuando cambie `design_instructions`; opcional `design_instructions_updated_by_user_id` si se desea) |
-| `design_attachments_json` | JSONB | No | **Anexos** de diseño: p. ej. arreglo `[{ "name", "url", "mime_type", "uploaded_at" }]`; si el volumen crece, valorar tabla hija `production_order_attachments` |
-| `created_by_user_id` | UUID | Sí | Patronista o gerente (pregunta 10) |
-| `status` | VARCHAR(32) | Sí | |
-| `closed_at` | TIMESTAMPTZ | No | |
-| `closed_by_user_id` | UUID | No | Especialista de terminación |
-| `created_at` | TIMESTAMPTZ | Sí | |
-| `updated_at` | TIMESTAMPTZ | Sí | |
-
-**Relaciones:** `garment_references` en **1:1** (`garment_references.production_order_id` UNIQUE); **`work_orders`** (una OP puede tener muchas órdenes de trabajo); **`production_order_size_curve_items`** (**curva de tallas** por OP); **`suppliers`** (proveedor de patronaje vía `pattern_supplier_id`).
-
----
-
-### 6b. Orden de trabajo
-
-**Lógico:** Orden de trabajo · **Físico:** `work_orders`
-
-Unidad operativa de trabajo en planta (taller, fase, lote, etc.) **vinculada a una orden de producción**. Permite asignar **colores Pantone** con granularidad por OT sin duplicar el catálogo de colores.
-
-| Columna | Tipo | Obl. | Notas |
-|---------|------|------|--------|
-| `id` | UUID | Sí | PK |
-| `production_order_id` | UUID | Sí | FK → `production_orders` |
-| `work_site_id` | UUID | No | FK → `work_sites` (planta donde corre la OT) |
-| `code` | VARCHAR(64) | Sí | Código visible de la OT (único recomendado **por OP** o global, según regla de negocio) |
-| `title` | VARCHAR(255) | No | Descripción corta |
-| `status` | VARCHAR(32) | Sí | Estado del flujo de la OT |
+| `work_order_id` | UUID | No | FK **UNIQUE** → `work_orders` (solo `source=work_order`) |
+| `source` | VARCHAR(32) | Sí | `lexi_catalog` \| `work_order` |
+| `lexi_external_id` | VARCHAR(128) | No | **UNIQUE**; idempotencia webhooks Lexi |
+| `title` | VARCHAR(255) | No | Nombre / descripción |
+| `status` | VARCHAR(32) | Sí | Default `draft`; catálogo Lexi: `received`, `in_review`, `archived`, etc. |
+| `attributes_json` | JSONB | No | Metadatos Lexi (temporada, notas, etc.) |
+| `image_url` | TEXT | No | Imagen principal (Lexi) |
+| `brand_id` | UUID | No | FK → `brands` |
+| `silhouette_id` | UUID | No | FK → `silhouettes` |
+| `fabric_supply_id` | UUID | No | FK → `supplies` (**insumo tipo Tela**) |
+| `pantone_color_id` | UUID | No | FK → `pantone_colors` (color principal) |
+| `garment_image_url_1` | TEXT | No | Imagen 1 (prenda operativa) |
+| `garment_image_url_2` | TEXT | No | Imagen 2 |
+| `garment_image_url_3` | TEXT | No | Imagen 3 |
+| `cut_garments_qty` | INT | No | Prendas cortadas |
+| `programmed_garments_qty` | INT | No | Prendas programadas |
 | `created_at` | TIMESTAMPTZ | Sí | |
 | `updated_at` | TIMESTAMPTZ | Sí | |
 | `created_by_user_id` | UUID | Sí | FK → `users` |
 
-**Relaciones:** `production_orders`, `work_sites`; colores vía **`work_order_pantone_colors`**; **bitácora** vía **`work_order_logs`**.
+**Relaciones:** `work_orders` (1:1 vía `work_order_id` UNIQUE), `brands`, `silhouettes`, `supplies` (tela), `pantone_colors`.
+
+**Nota:** las referencias Lexi **no se reutilizan** en OT; el operario consulta el catálogo y carga datos manualmente en la referencia nueva de su OT.
+
+---
+
+### 6a. Tipo de orden de trabajo
+
+**Lógico:** Tipo de orden de trabajo · **Físico:** `work_order_types`
+
+Catálogo que define la **plantilla de flujo** (blueprint) aplicable a las OT de ese tipo (p. ej. Corte, Confección, Terminación). Relación **1:1** con `work_order_blueprints`.
+
+| Columna | Tipo | Obl. | Notas |
+|---------|------|------|--------|
+| `id` | UUID | Sí | PK |
+| `code` | VARCHAR(32) | Sí | Código único (`CORTE`, `PCC`, …) |
+| `name` | VARCHAR(255) | Sí | Nombre visible |
+| `description` | TEXT | No | |
+| `is_active` | BOOLEAN | Sí | Default `true` |
+| `created_at` | TIMESTAMPTZ | Sí | |
+| `updated_at` | TIMESTAMPTZ | Sí | |
+| `created_by_user_id` | UUID | Sí | FK → `users` |
+
+**Relaciones:** **`work_order_blueprints`** (uno por tipo); **`work_orders`** que referencian el tipo.
+
+**UI:** Configuración → Tipos de OT (`/settings/work-order-types`); enlace a editor de blueprint.
+
+---
+
+### 6a2. Blueprint de flujo (por tipo de OT)
+
+**Lógico:** Blueprint de orden de trabajo · **Físico:** `work_order_blueprints`
+
+Grafo de **estados** (nodos = tareas/fases) y **transiciones** (aristas con acciones declarativas). Se edita en canvas (React Flow); al **publicar** queda disponible para nuevas OT del tipo.
+
+| Columna | Tipo | Obl. | Notas |
+|---------|------|------|--------|
+| `id` | UUID | Sí | PK |
+| `work_order_type_id` | UUID | Sí | FK **única** → `work_order_types` |
+| `version` | INT | Sí | Incrementa en cada publicación |
+| `status` | VARCHAR(16) | Sí | `draft` \| `published` |
+| `definition_json` | JSONB | Sí | Grafo: `nodes`, `edges`, `initialStateKey` (ver `docs/007-work-order-blueprints.md`) |
+| `published_at` | TIMESTAMPTZ | No | |
+| `created_at` | TIMESTAMPTZ | Sí | |
+| `updated_at` | TIMESTAMPTZ | Sí | |
+| `created_by_user_id` | UUID | Sí | FK → `users` |
+
+**Runtime:** al crear una OT con tipo y blueprint publicado, se copia `definition_json` a `work_orders.blueprint_snapshot_json` y se fija `current_state_key` al estado inicial.
+
+---
+
+### 6b. Orden de trabajo (entidad principal de producción)
+
+**Lógico:** Orden de trabajo · **Físico:** `work_orders`
+
+Unidad principal de producción en planta (antes "orden de producción" + "orden de trabajo" separadas). Incluye campos de planificación (tipo producción, patronaje, diseño) y de ejecución (blueprint, estado, cierre).
+
+| Columna | Tipo | Obl. | Notas |
+|---------|------|------|--------|
+| `id` | UUID | Sí | PK |
+| `work_order_type_id` | UUID | No | FK → `work_order_types` |
+| `work_site_id` | UUID | Sí | FK → `work_sites` (planta) |
+| `code` | VARCHAR(64) | Sí | Código visible **único** |
+| `title` | VARCHAR(255) | No | Descripción corta |
+| `status` | VARCHAR(32) | Sí | `pending`, `in_progress`, `completed`, `cancelled` |
+| `production_type` | VARCHAR(32) | No | `development` \| `batch_production` |
+| `pattern_supplier_id` | UUID | No | FK → `suppliers` (proveedor de patronaje) |
+| `patterning_days` | INT | No | Días en patronaje |
+| `design_instructions` | TEXT | No | Instrucciones de diseño |
+| `design_instructions_updated_at` | TIMESTAMPTZ | No | Última modificación instrucciones |
+| `design_attachments_json` | JSONB | No | Anexos de diseño |
+| `closed_at` | TIMESTAMPTZ | No | Fecha de cierre |
+| `closed_by_user_id` | UUID | No | FK → `users` (quien cierra) |
+| `current_state_key` | VARCHAR(128) | No | Nodo actual en el grafo del blueprint |
+| `blueprint_version` | INT | No | Versión del blueprint al instanciar |
+| `blueprint_snapshot_json` | JSONB | No | Copia congelada de `definition_json` |
+| `created_at` | TIMESTAMPTZ | Sí | |
+| `updated_at` | TIMESTAMPTZ | Sí | |
+| `created_by_user_id` | UUID | Sí | FK → `users` |
+
+**Relaciones:** `work_order_types`, `work_sites`, `suppliers` (patronaje); **`garment_references`** (1:1 vía `work_order_id`); **`work_order_size_curve_items`** (curva de tallas); colores vía **`work_order_pantone_colors`**; **bitácora** vía **`work_order_logs`**; **asignaciones** vía **`task_assignments`**; transiciones vía API `BlueprintEngine`.
+
+**UI:** `/work-orders` (listado y alta); `/work-orders/:id` (referencia, curva, grafo, transiciones, bitácora).
 
 ---
 
@@ -626,16 +654,16 @@ Complementa la **auditoría técnica** global (`audit_logs`); esta bitácora es 
 
 ---
 
-### 6e. Curva de tallas (por orden de producción)
+### 6e. Curva de tallas (por orden de trabajo)
 
-**Lógico:** Curva de tallas · **Físico:** `production_order_size_curve_items`
+**Lógico:** Curva de tallas · **Físico:** `work_order_size_curve_items`
 
-Cada **orden de producción** tiene una **curva de tallas**: un conjunto de líneas, cada una con una **talla** del catálogo `sizes` y la **cantidad** (o unidad de medida del pedido) planificada para esa talla en esa OP.
+Cada **orden de trabajo** tiene una **curva de tallas**: un conjunto de líneas, cada una con una **talla** del catálogo `sizes` y la **cantidad** planificada para esa talla en esa OT.
 
 | Columna | Tipo | Obl. | Notas |
 |---------|------|------|--------|
 | `id` | UUID | Sí | PK |
-| `production_order_id` | UUID | Sí | FK → `production_orders` |
+| `work_order_id` | UUID | Sí | FK → `work_orders` |
 | `size_id` | UUID | Sí | FK → `sizes` (**talla asociada** desde el catálogo) |
 | `quantity` | NUMERIC(18,4) | Sí | Unidades planificadas para esa talla en la curva (entero si no hay fracciones) |
 | `sort_order` | INT | No | Orden de columnas en vista “curva” |
@@ -644,7 +672,7 @@ Cada **orden de producción** tiene una **curva de tallas**: un conjunto de lín
 | `updated_at` | TIMESTAMPTZ | Sí | |
 | `created_by_user_id` | UUID | Sí | FK → `users` |
 
-**Restricción recomendada:** `UNIQUE (production_order_id, size_id)` para no duplicar la misma talla en la misma OP (ajustar si permiten líneas duplicadas por lotes distintos).
+**Restricción recomendada:** `UNIQUE (work_order_id, size_id)` para no duplicar la misma talla en la misma OT.
 
 ---
 
@@ -755,9 +783,9 @@ erDiagram
   silhouettes ||--o{ garment_references : uses
   supplies ||--o{ garment_references : fabric
   pantone_colors ||--o{ garment_references : color
-  sizes ||--o{ production_order_size_curve_items : sized
-  production_orders ||--o{ production_order_size_curve_items : curve
-  suppliers ||--o{ production_orders : pattern_service
+  sizes ||--o{ work_order_size_curve_items : sized
+  work_orders ||--o{ work_order_size_curve_items : curve
+  suppliers ||--o{ work_orders : pattern_service
   work_orders ||--o{ work_order_logs : logs
   supply_types ||--o{ supplies : classifies
   units_of_measure ||--o{ supplies : uom
@@ -777,15 +805,16 @@ erDiagram
   supplier_invoices ||--o{ supplier_payment_allocations : paid_from
   silhouette_categories ||--o{ silhouettes : classifies
   work_sites ||--o{ warehouses : has
-  work_sites ||--o{ production_orders : at
-  production_orders ||--|| garment_references : "1to1"
-  production_orders ||--o{ work_orders : splits
+  work_sites ||--o{ work_orders : at
+  work_orders ||--|| garment_references : "1to1 operativa"
+  work_order_types ||--|| work_order_blueprints : defines
+  work_order_types ||--o{ work_orders : typed
   work_orders ||--o{ work_order_pantone_colors : assigns
+  work_orders ||--o{ task_assignments : tasks
   pantone_colors ||--o{ work_order_pantone_colors : used
-  developments ||--o{ production_orders : spawns
-  users ||--o{ production_orders : creates
   users ||--o{ work_orders : creates
-  users ||--o{ production_order_size_curve_items : creates
+  users ||--o{ work_order_types : creates
+  users ||--o{ work_order_size_curve_items : creates
 ```
 
 ---
@@ -811,3 +840,5 @@ erDiagram
 | 0.5 | 2026-05-06 | **`work_order_logs`** (bitácora: cambios en OT + historial de trabajo); **`sizes`** + **`production_order_size_curve_items`** (curva de tallas por OP); tres **`garment_image_url_*`** en `garment_references` |
 | 0.6 | 2026-05-06 | Compras de insumo: **`supply_purchase_orders`** + **`supply_purchase_order_items`**, **`supply_purchase_receipts`** + **`supply_purchase_receipt_items`**, **`supplier_invoices`** + **`supplier_invoice_lines`**, **`supplier_payments`** + **`supplier_payment_allocations`**; **`supplies`**: `unit_of_measure_id`, `stock_on_hand`, `stock_on_way`, `purchase_unit_price` |
 | 0.7 | 2026-05-06 | **`production_orders`**: `production_type` (Desarrollo / Producción en lotes), `pattern_supplier_id` → `suppliers`, `patterning_days`, `design_instructions`, `design_instructions_updated_at`, `design_attachments_json` (anexos) |
+| 0.8 | 2026-05-17 | **`work_order_types`**, **`work_order_blueprints`** (flujo por canvas); **`work_orders`**: `work_order_type_id`, `current_state_key`, `blueprint_version`, `blueprint_snapshot_json`; motor de transiciones y UI de configuración/OT |
+| 0.9 | 2026-05-18 | **Simplificación:** eliminar `developments` y `production_orders`; OT como entidad principal con campos de planificación; `garment_references` dual-source (`lexi_catalog` / `work_order`); curva de tallas → `work_order_size_curve_items` |

@@ -1,5 +1,7 @@
 # Work Order Blueprints
 
+**Last updated:** 2026-05-17
+
 ## Overview
 
 Each **Work Order Type** (`work_order_types`) can have a single **Blueprint** that defines a state-machine flow. A blueprint is a directed graph where:
@@ -32,7 +34,7 @@ When a work order is created with a type that has a published blueprint, the sys
 | `definition_json` | JSONB | Graph definition (see below) |
 | `published_at` | TIMESTAMPTZ | When last published |
 
-### Changes to `work_orders`
+### Blueprint columns on `work_orders`
 
 | Column | Type | Notes |
 |--------|------|-------|
@@ -40,6 +42,8 @@ When a work order is created with a type that has a published blueprint, the sys
 | `current_state_key` | VARCHAR(128) | Current node ID in the graph |
 | `blueprint_version` | INT | Copied from blueprint at creation time |
 | `blueprint_snapshot_json` | JSONB | Frozen copy of `definition_json` |
+
+> Since v0.9, `work_orders` is the main production entity (no `production_order_id`). See `Cerebro/Estructura de base de datos.md` for full schema.
 
 ## `definition_json` Schema (v1)
 
@@ -128,3 +132,19 @@ When a work order is created with a type that has a published blueprint, the sys
 ## Immutability
 
 When a work order is created, the blueprint definition is **copied** into `blueprint_snapshot_json`. This ensures that publishing a new version of the blueprint does not break work orders already in progress.
+
+## UI routes (frontend)
+
+| Ruta | Descripción |
+|------|-------------|
+| `/settings/work-order-types` | CRUD tipos de OT; columna Blueprint enlaza al editor |
+| `/settings/work-order-types/:typeId/blueprint` | Canvas React Flow: estados, transiciones, guardar borrador, publicar |
+| `/work-orders` | Listado y alta de OT (selector de tipo) |
+| `/work-orders/:id` | Detalle: grafo en solo lectura, botones de transición, bitácora, tareas |
+
+## Backend modules
+
+| Módulo | Archivos clave |
+|--------|----------------|
+| `work-order-types` | `work-order-types.controller.ts`, `work-order-types.service.ts`, `blueprint-validator.ts` |
+| `work-orders` | `work-orders.service.ts`, `blueprint-engine.service.ts` |

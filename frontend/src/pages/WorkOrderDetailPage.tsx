@@ -37,14 +37,33 @@ interface FlowContext {
   edges: BlueprintEdge[];
 }
 
+interface GarmentRef {
+  id: string;
+  brandId?: string;
+  silhouetteId?: string;
+  fabricSupplyId?: string;
+  garmentImageUrl1?: string;
+}
+
+interface SizeCurveItem {
+  id: string;
+  sizeId: string;
+  quantity: number;
+  sortOrder?: number;
+}
+
 interface WODetail {
   id: string;
   code: string;
   title?: string;
   status: string;
+  productionType?: string;
   currentStateKey?: string;
   blueprintSnapshotJson?: { nodes: BlueprintNode[]; edges: BlueprintEdge[] };
   workOrderType?: { name: string };
+  workSite?: { name: string };
+  garmentReference?: GarmentRef;
+  sizeCurve?: SizeCurveItem[];
   logs: { id: string; entryType: string; summary?: string; performedAt: string; changesJson?: Record<string, unknown> }[];
   taskAssignments: { id: string; description?: string; status: string }[];
 }
@@ -114,9 +133,11 @@ export function WorkOrderDetailPage() {
           <h1 className="text-2xl font-bold">{wo.code}</h1>
           <p className="text-sm text-[var(--color-text-secondary)]">
             {wo.title ?? ''} {wo.workOrderType ? `— ${wo.workOrderType.name}` : ''}
+            {wo.workSite ? ` · ${wo.workSite.name}` : ''}
           </p>
         </div>
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-2">
+          {wo.productionType && <StatusBadge status={wo.productionType} />}
           <StatusBadge status={wo.status} />
         </div>
       </div>
@@ -164,6 +185,63 @@ export function WorkOrderDetailPage() {
           )}
         </Card>
       )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card>
+          <h2 className="font-semibold text-sm mb-3">Referencia de prenda</h2>
+          {wo.garmentReference ? (
+            <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+              {wo.garmentReference.brandId && (
+                <>
+                  <dt className="text-[var(--color-text-secondary)]">Marca</dt>
+                  <dd>{wo.garmentReference.brandId}</dd>
+                </>
+              )}
+              {wo.garmentReference.silhouetteId && (
+                <>
+                  <dt className="text-[var(--color-text-secondary)]">Silueta</dt>
+                  <dd>{wo.garmentReference.silhouetteId}</dd>
+                </>
+              )}
+              {wo.garmentReference.garmentImageUrl1 && (
+                <div className="col-span-2 mt-1">
+                  <img
+                    src={wo.garmentReference.garmentImageUrl1}
+                    alt="Prenda"
+                    className="h-20 rounded object-cover"
+                  />
+                </div>
+              )}
+            </dl>
+          ) : (
+            <p className="text-xs text-[var(--color-text-secondary)]">Sin referencia</p>
+          )}
+        </Card>
+
+        <Card>
+          <h2 className="font-semibold text-sm mb-3">Curva de tallas</h2>
+          {wo.sizeCurve && wo.sizeCurve.length > 0 ? (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-[var(--color-text-secondary)]">
+                  <th className="pb-1">Talla</th>
+                  <th className="pb-1 text-right">Cantidad</th>
+                </tr>
+              </thead>
+              <tbody>
+                {wo.sizeCurve.map((item) => (
+                  <tr key={item.id}>
+                    <td>{item.sizeId}</td>
+                    <td className="text-right">{item.quantity}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <p className="text-xs text-[var(--color-text-secondary)]">Sin curva de tallas</p>
+          )}
+        </Card>
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>

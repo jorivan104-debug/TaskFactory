@@ -5,6 +5,8 @@ import { CurrentUser } from '../auth/current-user.decorator';
 import { WorkOrdersService } from './work-orders.service';
 import { CreateWorkOrderDto } from './dto/create-work-order.dto';
 import { UpdateWorkOrderDto } from './dto/update-work-order.dto';
+import { UpsertGarmentReferenceDto } from './dto/upsert-garment-reference.dto';
+import { UpsertSizeCurveDto } from './dto/upsert-size-curve.dto';
 import { AddPantoneColorDto } from './dto/add-pantone-color.dto';
 import { CreateWorkOrderLogDto } from './dto/create-work-order-log.dto';
 
@@ -17,15 +19,15 @@ export class WorkOrdersController {
 
   @Get()
   @ApiOperation({ summary: 'List work orders' })
-  @ApiQuery({ name: 'productionOrderId', required: false })
   @ApiQuery({ name: 'status', required: false })
   @ApiQuery({ name: 'workSiteId', required: false })
+  @ApiQuery({ name: 'productionType', required: false })
   findAll(
-    @Query('productionOrderId') productionOrderId?: string,
     @Query('status') status?: string,
     @Query('workSiteId') workSiteId?: string,
+    @Query('productionType') productionType?: string,
   ) {
-    return this.service.findAll({ productionOrderId, status, workSiteId });
+    return this.service.findAll({ status, workSiteId, productionType });
   }
 
   @Get(':id')
@@ -44,6 +46,36 @@ export class WorkOrdersController {
   @ApiOperation({ summary: 'Update work order' })
   update(@Param('id') id: string, @Body() dto: UpdateWorkOrderDto) {
     return this.service.update(id, dto);
+  }
+
+  @Post(':id/close')
+  @ApiOperation({ summary: 'Close work order' })
+  close(@Param('id') id: string, @CurrentUser() user: { id: string }) {
+    return this.service.close(id, user.id);
+  }
+
+  // ── Garment Reference ──
+
+  @Post(':id/garment-reference')
+  @ApiOperation({ summary: 'Create or update garment reference' })
+  upsertGarmentReference(
+    @Param('id') id: string,
+    @Body() dto: UpsertGarmentReferenceDto,
+    @CurrentUser() user: { id: string },
+  ) {
+    return this.service.upsertGarmentReference(id, dto, user.id);
+  }
+
+  // ── Size Curve ──
+
+  @Post(':id/size-curve')
+  @ApiOperation({ summary: 'Upsert size curve items' })
+  upsertSizeCurve(
+    @Param('id') id: string,
+    @Body() dto: UpsertSizeCurveDto,
+    @CurrentUser() user: { id: string },
+  ) {
+    return this.service.upsertSizeCurve(id, dto, user.id);
   }
 
   // ── Blueprint Flow ──
