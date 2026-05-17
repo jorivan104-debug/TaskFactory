@@ -105,6 +105,31 @@ No debe aparecer `Cannot find module '/app/dist/main'` ni arranque por `nest sta
 | Dominio + labels duplicados | Conflicto Traefik | Usar solo Opción A o B de dominio |
 | `dist/main.js` no existe | Imagen sin build | `docker compose build --no-cache backend` |
 | WorkOS redirect falla | URI distinta al panel | `WORKOS_REDIRECT_URI` = URL pública exacta con prefijo `/api` |
+| **P3009** / backend **unhealthy** | Migración fallida en `_prisma_migrations` | Ver [Migración fallida (P3009)](#migración-fallida-p3009) |
+
+### Migración fallida (P3009)
+
+Si el log muestra `migrate found failed migrations` y `20260518120000_garment_references_catalog ... failed`:
+
+1. **Despliega** el commit que corrige el SQL de esa migración (el `UPDATE` de marcas debe usar subconsulta `FROM`, no `ROW_NUMBER()` en el `SET`).
+2. En el servidor, con el stack levantado (al menos `postgres` + un contenedor con Prisma):
+
+```bash
+cd /etc/dokploy/compose/<tu-compose>/code   # ruta del clone en Dokploy
+docker compose -p taskfactory-compose-4rodzf exec backend \
+  npx prisma migrate resolve --rolled-back 20260518120000_garment_references_catalog
+```
+
+3. **Redeploy** (rebuild backend) para que `prisma migrate deploy` vuelva a ejecutar la migración corregida.
+
+Si el contenedor `backend` no arranca, usa un one-off:
+
+```bash
+docker compose -p taskfactory-compose-4rodzf run --rm backend \
+  npx prisma migrate resolve --rolled-back 20260518120000_garment_references_catalog
+```
+
+> La migración corregida elimina referencias de catálogo Lexi sin `brand_id` y rellena `code` / `serie` en las filas restantes antes de quitar columnas `source` y `lexi_external_id`.
 
 ## Build local de imágenes (referencia)
 
