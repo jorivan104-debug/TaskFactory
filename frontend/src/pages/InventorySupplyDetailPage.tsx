@@ -295,7 +295,7 @@ export function InventorySupplyDetailPage() {
 
   return (
     <div className="space-y-6">
-      <motionlessHeader navigate={navigate} supply={supply} />
+      <SupplyDetailHeader navigate={navigate} supply={supply} />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card className="p-4 lg:col-span-1">
@@ -305,8 +305,8 @@ export function InventorySupplyDetailPage() {
               <dt className="text-[var(--color-text-secondary)]">Stock total</dt>
               <dd className="font-mono font-medium">{formatQty(supply.stockOnHand)}</dd>
             </div>
-            <motionlessSummaryRow label="Tipo" value={supply.supplyType?.name} />
-            <motionlessSummaryRow
+            <SummaryRow label="Tipo" value={supply.supplyType?.name} />
+            <SummaryRow
               label="Unidad"
               value={
                 supply.unitOfMeasure
@@ -315,7 +315,7 @@ export function InventorySupplyDetailPage() {
               }
             />
             {supply.sku && (
-              <motionlessSummaryRow label="SKU" value={supply.sku} />
+              <SummaryRow label="SKU" value={supply.sku} />
             )}
           </dl>
           {supply.stockLots && supply.stockLots.length > 0 && (
@@ -429,7 +429,7 @@ export function InventorySupplyDetailPage() {
               </Field>
             </div>
 
-            <motionlessModalFooter
+            <MovementModalFooter
               closeModal={closeModal}
               saveMutation={saveMutation}
               form={form}
@@ -442,7 +442,7 @@ export function InventorySupplyDetailPage() {
   );
 }
 
-function motionlessHeader({
+function SupplyDetailHeader({
   navigate,
   supply,
 }: {
@@ -457,12 +457,12 @@ function motionlessHeader({
       >
         <ArrowLeft size={20} />
       </button>
-      <motionlessHeaderTitle supply={supply} />
+      <SupplyDetailHeaderTitle supply={supply} />
     </div>
   );
 }
 
-function motionlessHeaderTitle({ supply }: { supply: SupplyDetail }) {
+function SupplyDetailHeaderTitle({ supply }: { supply: SupplyDetail }) {
   return (
     <div>
       <h1 className="text-2xl font-bold">{supply.name}</h1>
@@ -474,7 +474,7 @@ function motionlessHeaderTitle({ supply }: { supply: SupplyDetail }) {
   );
 }
 
-function motionlessSummaryRow({ label, value }: { label: string; value?: string }) {
+function SummaryRow({ label, value }: { label: string; value?: string }) {
   if (!value) return null;
   return (
     <div className="flex justify-between">
@@ -484,7 +484,7 @@ function motionlessSummaryRow({ label, value }: { label: string; value?: string 
   );
 }
 
-function motionlessModalFooter({
+function MovementModalFooter({
   closeModal,
   saveMutation,
   form,
