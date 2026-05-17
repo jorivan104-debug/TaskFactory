@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom';
+import { Workflow } from 'lucide-react';
 import type { CatalogCrudConfig } from '../../components/settings/CatalogCrudPage';
 import { ActiveBadge } from '../../components/settings/CatalogCrudPage';
 import api from '../../lib/api';
@@ -301,12 +303,28 @@ export const workOrderTypesConfig: CatalogCrudConfig = {
       key: 'blueprint',
       header: 'Blueprint',
       render: (row) => {
+        const typeId = String(row.id ?? '');
         const bp = row.blueprint as { status?: string; version?: number } | null;
-        if (!bp) return <span className="text-xs text-[var(--color-text-secondary)]">Sin blueprint</span>;
+        const badgeClass = !bp
+          ? 'bg-[var(--color-accent-blue-pale)] text-[var(--color-primary)]'
+          : bp.status === 'published'
+            ? 'bg-green-50 text-green-700'
+            : 'bg-yellow-50 text-yellow-700';
+        const label = !bp
+          ? 'Diseñar flujo'
+          : bp.status === 'published'
+            ? `v${bp.version} · Editar`
+            : 'Borrador · Editar';
         return (
-          <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${bp.status === 'published' ? 'bg-green-50 text-green-700' : 'bg-yellow-50 text-yellow-700'}`}>
-            {bp.status === 'published' ? `v${bp.version} publicado` : 'borrador'}
-          </span>
+          <Link
+            to={`/settings/work-order-types/${typeId}/blueprint`}
+            onClick={(e) => e.stopPropagation()}
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium hover:opacity-80 transition-opacity ${badgeClass}`}
+            title="Abrir editor de blueprint"
+          >
+            <Workflow size={14} className="shrink-0" />
+            {label}
+          </Link>
         );
       },
     },
