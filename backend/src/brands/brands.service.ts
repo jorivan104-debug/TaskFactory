@@ -13,9 +13,17 @@ export class BrandsService {
     return this.prisma.brand.findMany({ orderBy: { name: 'asc' } });
   }
 
-  /** Contador inicial sugerido al crear una marca (cada marca lleva su propia secuencia). */
-  getSuggestedCreateDefaults() {
-    return { nextReferenceSequence: 1 };
+  /** Siguiente consecutivo libre (100-999) para alta de marca. */
+  async getSuggestedCreateDefaults() {
+    const used = await this.prisma.brand.findMany({
+      select: { consecutivo: true },
+      orderBy: { consecutivo: 'asc' },
+    });
+    const set = new Set(used.map((b) => b.consecutivo));
+    for (let n = 100; n <= 999; n++) {
+      if (!set.has(n)) return { consecutivo: n };
+    }
+    throw new ConflictException('No hay consecutivos de marca disponibles (100-999)');
   }
 
   async findOne(id: string) {
@@ -24,7 +32,13 @@ export class BrandsService {
     return item;
   }
 
-  create(dto: CreateBrandDto, userId: string) {
+  async create(dto: CreateBrandDto, userId: string) {
+    const existing = await this.prisma.brand.findUnique({
+      where: { consecutivo: dto.consecutivo },
+    });
+    if (existing) {
+      throw new ConflictException(`Consecutivo ${dto.consecutivo} ya está en uso`);
+    }
     const { nextReferenceSequence, ...rest } = dto;
     return this.prisma.brand.create({
       data: {
@@ -39,6 +53,14 @@ export class BrandsService {
 
   async update(id: string, dto: UpdateBrandDto) {
     await this.findOne(id);
+    if (dto.consecutivo !== undefined) {
+      const clash = await this.prisma.brand.findFirst({
+        where: { consecutivo: dto.consecutivo, id: { not: id } },
+      });
+      if (clash) {
+        throw new ConflictException(`Consecutivo ${dto.consecutivo} ya está en uso`);
+      }
+    }
     const { nextReferenceSequence, ...rest } = dto;
     return this.prisma.brand.update({
       where: { id },

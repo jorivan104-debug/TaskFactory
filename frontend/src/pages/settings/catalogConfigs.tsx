@@ -104,27 +104,27 @@ export const brandsConfig: CatalogCrudConfig = {
   columns: [
     { key: 'name', header: 'Nombre' },
     { key: 'abbreviation', header: 'Abreviatura' },
-    {
-      key: 'nextReferenceSequence',
-      header: 'Sig. referencia',
-      render: (row) => String(row.nextReferenceSequence ?? '1'),
-    },
+    { key: 'consecutivo', header: 'Consecutivo' },
   ],
   fields: [
     { name: 'name', label: 'Nombre', type: 'text', required: true },
     { name: 'abbreviation', label: 'Abreviatura', type: 'text', required: true },
-    { name: 'nextReferenceSequence', label: 'Siguiente secuencia', type: 'number' },
+    {
+      name: 'consecutivo',
+      label: 'Consecutivo (100-999)',
+      type: 'number',
+      required: true,
+      placeholder: '150',
+    },
   ],
   fetchCreateDefaults: async () => {
-    const { data } = await api.get<{ nextReferenceSequence: number }>(
-      '/brands/suggested-create-defaults',
-    );
-    return { nextReferenceSequence: data.nextReferenceSequence };
+    const { data } = await api.get<{ consecutivo: number }>('/brands/suggested-create-defaults');
+    return { consecutivo: data.consecutivo };
   },
   mapRowToForm: (row) => ({
     name: String(row.name ?? ''),
     abbreviation: String(row.abbreviation ?? ''),
-    nextReferenceSequence: Number(row.nextReferenceSequence ?? 1),
+    consecutivo: Number(row.consecutivo ?? 100),
   }),
 };
 

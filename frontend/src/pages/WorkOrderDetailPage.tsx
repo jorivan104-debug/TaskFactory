@@ -39,11 +39,22 @@ interface FlowContext {
 
 interface GarmentRef {
   id: string;
+  code?: string;
+  referenceType?: string;
+  serie?: string;
+  title?: string;
   brandId?: string;
+  brand?: { id: string; name: string; consecutivo: number };
   silhouetteId?: string;
   fabricSupplyId?: string;
   garmentImageUrl1?: string;
 }
+
+const referenceTypeLabel = (t?: string) => {
+  if (t === 'muestra') return 'Muestra';
+  if (t === 'produccion') return 'Producción';
+  return t ?? '—';
+};
 
 interface SizeCurveItem {
   id: string;
@@ -191,10 +202,34 @@ export function WorkOrderDetailPage() {
           <h2 className="font-semibold text-sm mb-3">Referencia de prenda</h2>
           {wo.garmentReference ? (
             <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-              {wo.garmentReference.brandId && (
+              {wo.garmentReference.code && (
+                <>
+                  <dt className="text-[var(--color-text-secondary)]">ID referencia</dt>
+                  <dd className="font-mono">{wo.garmentReference.code}</dd>
+                </>
+              )}
+              {wo.garmentReference.referenceType && (
+                <>
+                  <dt className="text-[var(--color-text-secondary)]">Tipo</dt>
+                  <dd>{referenceTypeLabel(wo.garmentReference.referenceType)}</dd>
+                </>
+              )}
+              {wo.garmentReference.serie && (
+                <>
+                  <dt className="text-[var(--color-text-secondary)]">Serie</dt>
+                  <dd>{wo.garmentReference.serie}</dd>
+                </>
+              )}
+              {(wo.garmentReference.brand?.name || wo.garmentReference.brandId) && (
                 <>
                   <dt className="text-[var(--color-text-secondary)]">Marca</dt>
-                  <dd>{wo.garmentReference.brandId}</dd>
+                  <dd>{wo.garmentReference.brand?.name ?? wo.garmentReference.brandId}</dd>
+                </>
+              )}
+              {wo.garmentReference.title && (
+                <>
+                  <dt className="text-[var(--color-text-secondary)]">Título</dt>
+                  <dd>{wo.garmentReference.title}</dd>
                 </>
               )}
               {wo.garmentReference.silhouetteId && (

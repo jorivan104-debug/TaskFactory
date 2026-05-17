@@ -1,18 +1,17 @@
-import { IsString, IsOptional, IsUUID, IsInt, IsIn, Min } from 'class-validator';
+import { IsString, IsOptional, IsUUID, IsBoolean, MaxLength } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { REFERENCE_TYPES } from '../../garment-references/garment-reference-code.util';
 
-export class UpsertGarmentReferenceDto {
-  @ApiPropertyOptional({ example: 'uuid' })
-  @IsOptional()
-  @IsUUID()
-  brandId?: string;
-
-  @ApiPropertyOptional({ enum: REFERENCE_TYPES })
+export class UpdateGarmentReferenceDto {
+  @ApiPropertyOptional({ example: 'Chaqueta denim' })
   @IsOptional()
   @IsString()
-  @IsIn([...REFERENCE_TYPES])
-  referenceType?: string;
+  @MaxLength(255)
+  title?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  imageUrl?: string;
 
   @ApiPropertyOptional({ example: 'uuid' })
   @IsOptional()
@@ -44,15 +43,8 @@ export class UpsertGarmentReferenceDto {
   @IsString()
   garmentImageUrl3?: string;
 
-  @ApiPropertyOptional({ example: 500 })
+  @ApiPropertyOptional()
   @IsOptional()
-  @IsInt()
-  @Min(0)
-  cutGarmentsQty?: number;
-
-  @ApiPropertyOptional({ example: 450 })
-  @IsOptional()
-  @IsInt()
-  @Min(0)
-  programmedGarmentsQty?: number;
+  @IsBoolean()
+  isActive?: boolean;
 }

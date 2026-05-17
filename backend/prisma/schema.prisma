@@ -153,6 +153,7 @@ model Brand {
   id                    String   @id @default(uuid()) @db.Uuid
   name                  String   @db.VarChar(255)
   abbreviation          String   @unique @db.VarChar(32)
+  consecutivo           Int      @unique
   logoUrl               String?  @map("logo_url")
   nextReferenceSequence BigInt   @default(1) @map("next_reference_sequence")
   createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz
@@ -531,13 +532,15 @@ model WorkOrderBlueprint {
 model GarmentReference {
   id                    String   @id @default(uuid()) @db.Uuid
   workOrderId           String?  @unique @map("work_order_id") @db.Uuid
-  source                String   @db.VarChar(32)
-  lexiExternalId        String?  @unique @map("lexi_external_id") @db.VarChar(128)
+  code                  String   @unique @db.VarChar(9)
+  referenceType         String   @map("reference_type") @db.VarChar(32)
+  serie                 String   @db.VarChar(3)
+  referenceSequence     Int      @map("reference_sequence")
   title                 String?  @db.VarChar(255)
   status                String   @default("draft") @db.VarChar(32)
-  attributesJson        Json?    @map("attributes_json")
+  isActive              Boolean  @default(true) @map("is_active")
   imageUrl              String?  @map("image_url")
-  brandId               String?  @map("brand_id") @db.Uuid
+  brandId               String   @map("brand_id") @db.Uuid
   silhouetteId          String?  @map("silhouette_id") @db.Uuid
   fabricSupplyId        String?  @map("fabric_supply_id") @db.Uuid
   pantoneColorId        String?  @map("pantone_color_id") @db.Uuid

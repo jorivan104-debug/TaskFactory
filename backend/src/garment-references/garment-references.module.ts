@@ -5,5 +5,6 @@ import { GarmentReferencesService } from './garment-references.service';
 @Module({
   controllers: [GarmentReferencesController],
   providers: [GarmentReferencesService],
+  exports: [GarmentReferencesService],
 })
 export class GarmentReferencesModule {}

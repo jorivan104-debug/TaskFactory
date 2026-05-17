@@ -107,7 +107,7 @@ TaskFactory/
 │       ├── supply-types/
 │       ├── work-order-types/   # Tipos de OT + blueprints
 │       ├── work-orders/        # OT (entidad principal) + motor de flujo + ref. + curva
-│       ├── garment-references/ # Catálogo Lexi (GET/PATCH)
+│       ├── garment-references/ # Catálogo referencias (CRUD + preview ID)
 │       ├── employees/          # Personal + TaskAssignment
 │       ├── purchasing/         # Compras de insumo
 │       ├── inventory/
@@ -123,7 +123,7 @@ TaskFactory/
 │       │   ├── settings/       # CRUD catálogos + editor blueprint (React Flow)
 │       │   ├── WorkOrdersPage.tsx
 │       │   ├── WorkOrderDetailPage.tsx
-│       │   └── GarmentReferencesPage.tsx  # Catálogo Lexi
+│       │   └── GarmentReferencesPage.tsx  # Catálogo referencias
 │       └── components/settings/  # CatalogCrudPage reutilizable
 ├── docker-compose.yml          # Dokploy: postgres + backend + frontend
 └── docker-compose.dokploy.yml  # API + web (DB externa)
@@ -135,7 +135,7 @@ TaskFactory/
 |-----------|-----------|
 | [001-architecture-decision.md](docs/001-architecture-decision.md) | Stack y decisiones de arquitectura |
 | [002-domain-gaps-resolution.md](docs/002-domain-gaps-resolution.md) | Entidades de dominio y decisiones abiertas |
-| [003-lexi-contract.md](docs/003-lexi-contract.md) | Contrato integración Lexi |
+| [003-lexi-contract.md](docs/003-lexi-contract.md) | Lexi (histórico; catálogo manual activo) |
 | [004-accounting-sync-contract.md](docs/004-accounting-sync-contract.md) | Sincronización contable |
 | [005-test-plan.md](docs/005-test-plan.md) | Plan de pruebas y smoke tests |
 | [006-dokploy-deployment.md](docs/006-dokploy-deployment.md) | Despliegue Dokploy / Traefik |
@@ -151,7 +151,7 @@ Modelo relacional detallado (tablas y columnas): **[Cerebro/Estructura de base d
 | Configuración — catálogos CRUD | Plantas, almacenes, roles, marcas, siluetas, tallas, colores, unidades/tipos insumo, **tipos de OT** |
 | Blueprints de flujo (canvas) | Editor React Flow + API publicar/borrador; motor en runtime de OT |
 | Órdenes de trabajo | Entidad principal: referencia de prenda 1:1, curva de tallas, transiciones, bitácora |
-| Referencias Lexi | Catálogo de ideas/solicitudes desde Lexi (webhook + UI solo lectura) |
+| Referencias | Catálogo manual: crear/editar/desactivar, ID automático (marca + secuencia + serie) |
 | Compras, inventario, etc. | API base / UI según módulo (ver roadmap) |
 | Despliegue staging | Dokploy + `taskfactory.app-sprint.com` |
 

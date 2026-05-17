@@ -55,9 +55,10 @@ Los **tipos** son orientativos (PostgreSQL como referencia común en servidores 
 |---------|------|------|--------|
 | `id` | UUID | Sí | PK |
 | `name` | VARCHAR(255) | Sí | Nombre de marca |
-| `abbreviation` | VARCHAR(32) | Sí | Abreviatura (única recomendada) |
+| `abbreviation` | VARCHAR(32) | Sí | Abreviatura (única) |
+| `consecutivo` | INT | Sí | **UNIQUE**; 3 dígitos (100–999); primeros 3 caracteres del `code` de referencia |
 | `logo_url` | TEXT | No | URL o clave de almacenamiento del logo |
-| `next_reference_sequence` | BIGINT | Sí | **Consecutivo** para numerar referencias de esta marca (incrementar al crear cada `garment_references`; ver regla de negocio en aplicación) |
+| `next_reference_sequence` | BIGINT | Sí | Legacy; la secuencia por marca se calcula con `MAX(reference_sequence)` en `garment_references` |
 | `created_at` | TIMESTAMPTZ | Sí | |
 | `updated_at` | TIMESTAMPTZ | Sí | |
 | `created_by_user_id` | UUID | Sí | FK → `users` |
@@ -235,7 +236,7 @@ Catálogo maestro de tallas usado en la **curva de tallas** de cada orden de pro
 
 ### I. Referencia de prenda
 
-> Documentación movida a **§5** (dual-source: Lexi catálogo u OT operativa). La antigua tabla `garment_references` con `production_order_id` fue reemplazada por la versión con `work_order_id` + `source`.
+> Documentación en **§5** (catálogo manual u OT operativa vía `work_order_id`).
 
 ---
 
@@ -486,26 +487,30 @@ Flujo documentado: **Orden de compra de insumos** → **Recibidos** (parciales o
 
 ---
 
-### 5. Referencia de prenda (dual-source: Lexi catálogo u OT operativa)
+### 5. Referencia de prenda (catálogo manual u OT operativa)
 
 **Lógico:** Referencia de prenda · **Físico:** `garment_references`
 
-Tabla unificada para dos orígenes:
+- **Catálogo** (`work_order_id` nulo): alta manual en UI; crear, editar y desactivar (`is_active`).
+- **OT** (`work_order_id` UNIQUE): referencia operativa **1:1** con `work_orders`; mismo esquema de código y serie.
 
-- **`lexi_catalog`**: solicitud/idea que llega de Lexi por webhook; no se vincula a ninguna OT. Campos de catálogo opcionales.
-- **`work_order`**: referencia operativa **1:1** con una `work_orders`. Campos de catálogo (marca, silueta, tela) normalmente obligatorios.
+**ID visible (`code`, 9 caracteres):** `brands.consecutivo` (3) + `reference_sequence` por marca (3, 100–999, siguiente al máximo existente) + `serie` (3).
+
+**Serie:** asignada al elegir `reference_type`: `muestra` → `M00`–`M99`; `produccion` → `P00`–`P99`.
 
 | Columna | Tipo | Obl. | Notas |
 |---------|------|------|--------|
 | `id` | UUID | Sí | PK |
-| `work_order_id` | UUID | No | FK **UNIQUE** → `work_orders` (solo `source=work_order`) |
-| `source` | VARCHAR(32) | Sí | `lexi_catalog` \| `work_order` |
-| `lexi_external_id` | VARCHAR(128) | No | **UNIQUE**; idempotencia webhooks Lexi |
+| `work_order_id` | UUID | No | FK **UNIQUE** → `work_orders` (referencia de OT) |
+| `code` | VARCHAR(9) | Sí | **UNIQUE**; ID de negocio (ver regla arriba) |
+| `reference_type` | VARCHAR(32) | Sí | `muestra` \| `produccion` |
+| `serie` | VARCHAR(3) | Sí | Auto según tipo |
+| `reference_sequence` | INT | Sí | Secuencia numérica por marca (100–999) |
 | `title` | VARCHAR(255) | No | Nombre / descripción |
-| `status` | VARCHAR(32) | Sí | Default `draft`; catálogo Lexi: `received`, `in_review`, `archived`, etc. |
-| `attributes_json` | JSONB | No | Metadatos Lexi (temporada, notas, etc.) |
-| `image_url` | TEXT | No | Imagen principal (Lexi) |
-| `brand_id` | UUID | No | FK → `brands` |
+| `status` | VARCHAR(32) | Sí | Default `active` en catálogo |
+| `is_active` | BOOLEAN | Sí | Default `true`; desactivar sin borrar |
+| `image_url` | TEXT | No | Imagen principal |
+| `brand_id` | UUID | Sí | FK → `brands` |
 | `silhouette_id` | UUID | No | FK → `silhouettes` |
 | `fabric_supply_id` | UUID | No | FK → `supplies` (**insumo tipo Tela**) |
 | `pantone_color_id` | UUID | No | FK → `pantone_colors` (color principal) |
@@ -520,7 +525,7 @@ Tabla unificada para dos orígenes:
 
 **Relaciones:** `work_orders` (1:1 vía `work_order_id` UNIQUE), `brands`, `silhouettes`, `supplies` (tela), `pantone_colors`.
 
-**Nota:** las referencias Lexi **no se reutilizan** en OT; el operario consulta el catálogo y carga datos manualmente en la referencia nueva de su OT.
+**Nota:** el catálogo no se vincula automáticamente a OT; al crear OT con referencia se genera un nuevo `code` con marca y tipo indicados.
 
 ---
 
@@ -842,3 +847,4 @@ erDiagram
 | 0.7 | 2026-05-06 | **`production_orders`**: `production_type` (Desarrollo / Producción en lotes), `pattern_supplier_id` → `suppliers`, `patterning_days`, `design_instructions`, `design_instructions_updated_at`, `design_attachments_json` (anexos) |
 | 0.8 | 2026-05-17 | **`work_order_types`**, **`work_order_blueprints`** (flujo por canvas); **`work_orders`**: `work_order_type_id`, `current_state_key`, `blueprint_version`, `blueprint_snapshot_json`; motor de transiciones y UI de configuración/OT |
 | 0.9 | 2026-05-18 | **Simplificación:** eliminar `developments` y `production_orders`; OT como entidad principal con campos de planificación; `garment_references` dual-source (`lexi_catalog` / `work_order`); curva de tallas → `work_order_size_curve_items` |
+| 1.0 | 2026-05-18 | **Catálogo manual:** `brands.consecutivo` (100–999); `garment_references.code`, `reference_type`, `serie`, `reference_sequence`, `is_active`; sin Lexi/webhook; CRUD + preview de ID |

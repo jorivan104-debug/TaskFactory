@@ -4,6 +4,7 @@ import {
   IsOptional,
   IsUUID,
   IsInt,
+  IsIn,
   Min,
   MaxLength,
   ValidateNested,
@@ -11,12 +12,18 @@ import {
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
+import { REFERENCE_TYPES } from '../../garment-references/garment-reference-code.util';
 
 export class CreateGarmentReferencePayload {
-  @ApiPropertyOptional({ example: 'uuid' })
-  @IsOptional()
+  @ApiProperty({ example: 'uuid' })
   @IsUUID()
-  brandId?: string;
+  @IsNotEmpty()
+  brandId: string;
+
+  @ApiProperty({ enum: REFERENCE_TYPES, example: 'muestra' })
+  @IsString()
+  @IsIn([...REFERENCE_TYPES])
+  referenceType: string;
 
   @ApiPropertyOptional({ example: 'uuid' })
   @IsOptional()

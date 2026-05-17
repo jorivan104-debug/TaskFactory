@@ -8,12 +8,14 @@ import { UpsertSizeCurveDto } from './dto/upsert-size-curve.dto';
 import { AddPantoneColorDto } from './dto/add-pantone-color.dto';
 import { CreateWorkOrderLogDto } from './dto/create-work-order-log.dto';
 import type { BlueprintDefinition } from '../work-order-types/blueprint-validator';
+import { GarmentReferencesService } from '../garment-references/garment-references.service';
 
 @Injectable()
 export class WorkOrdersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly engine: BlueprintEngineService,
+    private readonly garmentRefs: GarmentReferencesService,
   ) {}
 
   findAll(filters: { status?: string; workSiteId?: string; productionType?: string }) {
@@ -29,7 +31,16 @@ export class WorkOrdersService {
         workOrderType: { select: { id: true, code: true, name: true } },
         workSite: { select: { id: true, code: true, name: true } },
         garmentReference: {
-          select: { id: true, brandId: true, silhouetteId: true },
+          select: {
+            id: true,
+            code: true,
+            serie: true,
+            referenceType: true,
+            title: true,
+            brandId: true,
+            silhouetteId: true,
+            brand: { select: { id: true, name: true, consecutivo: true } },
+          },
         },
       },
     });
@@ -44,7 +55,11 @@ export class WorkOrdersService {
         taskAssignments: true,
         workOrderType: true,
         workSite: true,
-        garmentReference: true,
+        garmentReference: {
+          include: {
+            brand: { select: { id: true, name: true, consecutivo: true } },
+          },
+        },
         sizeCurve: { orderBy: { sortOrder: 'asc' } },
       },
     });
@@ -66,14 +81,17 @@ export class WorkOrdersService {
       });
 
       if (garmentReference) {
-        await tx.garmentReference.create({
-          data: {
-            ...garmentReference,
-            workOrderId: wo.id,
-            source: 'work_order',
+        const { referenceType, brandId, ...refRest } = garmentReference;
+        await this.garmentRefs.createForWorkOrder(
+          tx,
+          {
+            brandId,
+            referenceType,
             createdByUserId: userId,
+            ...refRest,
           },
-        });
+          wo.id,
+        );
       }
 
       if (sizeCurve?.length) {
@@ -149,20 +167,34 @@ export class WorkOrdersService {
     });
 
     if (existing) {
+      const { brandId: _b, referenceType: _t, ...mutable } = dto as Record<string, unknown>;
       return this.prisma.garmentReference.update({
         where: { id: existing.id },
-        data: dto,
+        data: mutable,
       });
     }
 
-    return this.prisma.garmentReference.create({
-      data: {
-        ...dto,
+    if (!dto.brandId || !dto.referenceType) {
+      throw new BadRequestException('brandId and referenceType are required to create a reference');
+    }
+
+    return this.prisma.$transaction((tx) =>
+      this.garmentRefs.createForWorkOrder(
+        tx,
+        {
+          brandId: dto.brandId!,
+          referenceType: dto.referenceType!,
+          createdByUserId: userId,
+          silhouetteId: dto.silhouetteId,
+          fabricSupplyId: dto.fabricSupplyId,
+          pantoneColorId: dto.pantoneColorId,
+          garmentImageUrl1: dto.garmentImageUrl1,
+          garmentImageUrl2: dto.garmentImageUrl2,
+          garmentImageUrl3: dto.garmentImageUrl3,
+        },
         workOrderId,
-        source: 'work_order',
-        createdByUserId: userId,
-      },
-    });
+      ),
+    );
   }
 
   // ── Size Curve ──

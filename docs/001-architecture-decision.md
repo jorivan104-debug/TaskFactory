@@ -13,7 +13,7 @@ TaskFactory is a greenfield multi-plant production management platform replacing
 - Mobile + PC access, always online
 - UI in Spanish, codebase in English
 - Multi-site (unlimited work sites and warehouses)
-- Integrations: Lexi (API/webhooks), Zoho Books (accounting sync), email, WhatsApp
+- Integrations: Zoho Books (accounting sync), email, WhatsApp (Lexi desconectado; catálogo manual de referencias)
 - Lot/serial tracking from day one
 - Audit trail on critical operations
 
@@ -75,9 +75,8 @@ TaskFactory is a greenfield multi-plant production management platform replacing
 
 - **Removed:** `developments` and `production_orders` tables/modules
 - **Work order as main entity:** planning fields (production type, pattern supplier, design instructions) and execution fields (blueprint, state, close) all live on `work_orders`
-- **Garment references (dual-source):** `lexi_catalog` (from Lexi webhook, unlinked) and `work_order` (1:1 operational, created with OT)
+- **Garment references:** manual catalog (`work_order_id` null) or 1:1 with OT; auto `code` (brand consecutivo + sequence + serie)
 - **Size curve:** `work_order_size_curve_items` directly on the work order
-- **Lexi:** webhook still at `/webhooks/lexi/developments` for backward compatibility; data goes to `garment_references` table
 
 ## Consequences
 

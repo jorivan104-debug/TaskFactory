@@ -18,7 +18,7 @@ import clsx from 'clsx';
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'Órdenes de trabajo', href: '/work-orders', icon: ClipboardList },
-  { name: 'Referencias Lexi', href: '/garment-references', icon: Palette },
+  { name: 'Referencias', href: '/garment-references', icon: Palette },
   { name: 'Inventario', href: '/inventory', icon: Package },
   { name: 'Compras', href: '/purchasing', icon: ShoppingCart },
   { name: 'Pedidos internos', href: '/internal-orders', icon: FileText },

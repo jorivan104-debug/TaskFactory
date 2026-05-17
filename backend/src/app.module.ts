@@ -25,8 +25,6 @@ import { ShipmentsModule } from './shipments/shipments.module';
 import { AccountingSyncModule } from './accounting-sync/accounting-sync.module';
 import { ReportsModule } from './reports/reports.module';
 import { AuditModule } from './audit/audit.module';
-import { WebhooksModule } from './webhooks/webhooks.module';
-
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -55,7 +53,6 @@ import { WebhooksModule } from './webhooks/webhooks.module';
     AccountingSyncModule,
     ReportsModule,
     AuditModule,
-    WebhooksModule,
   ],
 })
 export class AppModule {}

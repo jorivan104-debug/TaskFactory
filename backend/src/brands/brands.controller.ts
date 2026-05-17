@@ -20,7 +20,7 @@ export class BrandsController {
   }
 
   @Get('suggested-create-defaults')
-  @ApiOperation({ summary: 'Suggested nextReferenceSequence for new brand form' })
+  @ApiOperation({ summary: 'Suggested consecutivo (100-999) for new brand form' })
   getSuggestedCreateDefaults() {
     return this.service.getSuggestedCreateDefaults();
   }

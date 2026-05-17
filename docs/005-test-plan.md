@@ -25,9 +25,11 @@ Per the roadmap, this gate is met when:
 - [ ] Create work order type and open blueprint editor from list column
 - [ ] Verify audit log captures user creation
 
-### 2. Lexi Catalog & Garment References
-- [ ] Simulate Lexi webhook creating a catalog reference (`POST /webhooks/lexi/developments`)
-- [ ] Verify reference created with `source=lexi_catalog` and `lexi_external_id`
+### 2. Garment References (catálogo manual)
+- [ ] Create brand with `consecutivo` 100–999
+- [ ] `GET /garment-references/preview?brandId=&referenceType=muestra` returns `code` and `serie` (e.g. `M00`)
+- [ ] `POST /garment-references` creates row with expected 9-char `code`
+- [ ] `PATCH` updates title; `POST .../deactivate` sets `is_active=false`
 - [ ] List catalog references (`GET /garment-references`)
 - [ ] Update catalog reference status (`PATCH /garment-references/:id`)
 
@@ -107,7 +109,7 @@ Per the roadmap, this gate is met when:
 - [ ] Work order bitacora (logs) records status changes and progress
 - [ ] Blueprint validator rejects invalid graph on publish (no initial state, dangling edges)
 - [ ] Work order without type still works (no blueprint snapshot)
-- [ ] Catalog reference (`lexi_catalog`) cannot be linked to a work order via API
+- [ ] Catalog reference (`work_order_id` null) cannot change `code` / `reference_type` / `brand_id` via PATCH
 - [ ] API documentation (Swagger) accessible at /api/docs
 - [ ] JWT authentication works on all protected endpoints
 - [ ] RBAC correctly restricts access (seller sees only terminación phase orders)
@@ -123,4 +125,4 @@ Per the roadmap, this gate is met when:
 - 16 sizes
 - At least 1 brand, 1 supplier, 1 supply for testing
 - At least 1 `work_order_type` with a **published** blueprint (2+ states, 1+ transition)
-- At least 1 Lexi catalog reference (`garment_references` with `source=lexi_catalog`)
+- At least 1 catalog reference (`garment_references` with `work_order_id` null and valid `code`)

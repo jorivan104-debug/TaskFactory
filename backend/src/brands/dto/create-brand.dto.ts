@@ -1,4 +1,4 @@
-import { IsInt, IsNotEmpty, IsOptional, IsString, MaxLength, Min } from 'class-validator';
+import { IsInt, IsNotEmpty, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateBrandDto {
@@ -14,7 +14,13 @@ export class CreateBrandDto {
   @MaxLength(32)
   abbreviation: string;
 
-  @ApiPropertyOptional({ example: 1, description: 'Starting reference sequence number' })
+  @ApiProperty({ example: 150, description: 'Consecutivo de marca (100-999), 3 dígitos' })
+  @IsInt()
+  @Min(100)
+  @Max(999)
+  consecutivo: number;
+
+  @ApiPropertyOptional({ example: 1, description: 'Deprecated: use consecutivo' })
   @IsOptional()
   @IsInt()
   @Min(0)
