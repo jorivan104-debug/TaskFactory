@@ -36,7 +36,7 @@ export class WorkOrdersController {
 
   @Post()
   @ApiOperation({ summary: 'Create work order' })
-  create(@Body() dto: CreateWorkOrderDto, @CurrentUser() user: any) {
+  create(@Body() dto: CreateWorkOrderDto, @CurrentUser() user: { id: string }) {
     return this.service.create(dto, user.id);
   }
 
@@ -46,6 +46,24 @@ export class WorkOrdersController {
     return this.service.update(id, dto);
   }
 
+  // ── Blueprint Flow ──
+
+  @Get(':id/flow')
+  @ApiOperation({ summary: 'Get current blueprint state and available transitions' })
+  getFlow(@Param('id') id: string) {
+    return this.service.getFlow(id);
+  }
+
+  @Post(':id/transitions/:transitionId')
+  @ApiOperation({ summary: 'Execute a blueprint transition' })
+  executeTransition(
+    @Param('id') id: string,
+    @Param('transitionId') transitionId: string,
+    @CurrentUser() user: { id: string },
+  ) {
+    return this.service.executeTransition(id, transitionId, user.id);
+  }
+
   // ── Pantone Colors ──
 
   @Post(':id/pantone-colors')
@@ -53,7 +71,7 @@ export class WorkOrdersController {
   addPantoneColor(
     @Param('id') id: string,
     @Body() dto: AddPantoneColorDto,
-    @CurrentUser() user: any,
+    @CurrentUser() user: { id: string },
   ) {
     return this.service.addPantoneColor(id, dto, user.id);
   }
@@ -80,7 +98,7 @@ export class WorkOrdersController {
   createLog(
     @Param('id') id: string,
     @Body() dto: CreateWorkOrderLogDto,
-    @CurrentUser() user: any,
+    @CurrentUser() user: { id: string },
   ) {
     return this.service.createLog(id, dto, user.id);
   }

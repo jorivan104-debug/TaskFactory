@@ -1,33 +1,37 @@
-import { IsString, IsNotEmpty, IsOptional, IsEnum, MaxLength } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsUUID, MaxLength } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
-export enum WorkOrderStatus {
-  PENDING = 'pending',
-  IN_PROGRESS = 'in_progress',
-  COMPLETED = 'completed',
-  ON_HOLD = 'on_hold',
-  CANCELLED = 'cancelled',
-}
-
 export class CreateWorkOrderDto {
-  @ApiProperty({ example: 'uuid' })
-  @IsString()
+  @ApiProperty()
+  @IsUUID()
   @IsNotEmpty()
   productionOrderId: string;
 
-  @ApiProperty({ example: 'uuid' })
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsUUID()
+  workOrderTypeId?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsUUID()
+  workSiteId?: string;
+
+  @ApiProperty({ example: 'OT-001' })
   @IsString()
   @IsNotEmpty()
-  workSiteId: string;
+  @MaxLength(64)
+  code: string;
 
-  @ApiPropertyOptional({ example: 'Sewing batch A' })
+  @ApiPropertyOptional({ example: 'Corte lote A' })
   @IsOptional()
   @IsString()
   @MaxLength(255)
-  description?: string;
+  title?: string;
 
-  @ApiPropertyOptional({ enum: WorkOrderStatus, default: WorkOrderStatus.PENDING })
+  @ApiPropertyOptional({ default: 'pending' })
   @IsOptional()
-  @IsEnum(WorkOrderStatus)
-  status?: WorkOrderStatus;
+  @IsString()
+  @MaxLength(32)
+  status?: string;
 }

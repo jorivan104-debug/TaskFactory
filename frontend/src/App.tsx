@@ -16,6 +16,8 @@ import { ReportsPage } from './pages/ReportsPage';
 import { SuppliersPage } from './pages/SuppliersPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { SettingsCatalogRoute } from './pages/settings/SettingsCatalogRoute';
+import { WorkOrderBlueprintEditorPage } from './pages/settings/WorkOrderBlueprintEditorPage';
+import { WorkOrderDetailPage } from './pages/WorkOrderDetailPage';
 import { useAuthStore } from './stores/auth.store';
 
 const queryClient = new QueryClient({
@@ -52,8 +54,10 @@ export default function App() {
             <Route path="/accounting" element={<AccountingSyncPage />} />
             <Route path="/reports" element={<ReportsPage />} />
             <Route path="/suppliers" element={<SuppliersPage />} />
+            <Route path="/work-orders/:id" element={<WorkOrderDetailPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/settings/:catalogId" element={<SettingsCatalogRoute />} />
+            <Route path="/settings/work-order-types/:typeId/blueprint" element={<WorkOrderBlueprintEditorPage />} />
           </Route>
         </Routes>
       </BrowserRouter>

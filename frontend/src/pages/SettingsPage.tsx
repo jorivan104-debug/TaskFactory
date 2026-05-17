@@ -9,6 +9,7 @@ import {
   Ruler,
   Palette,
   Box,
+  Workflow,
 } from 'lucide-react';
 import { settingsSectionLinks } from './settings/catalogConfigs';
 
@@ -21,6 +22,7 @@ const icons: Record<string, typeof Factory> = {
   sizes: Ruler,
   'pantone-colors': Palette,
   'supply-catalogs': Box,
+  'work-order-types': Workflow,
 };
 
 export function SettingsPage() {

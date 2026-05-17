@@ -289,6 +289,36 @@ export const supplyTypesConfig: CatalogCrudConfig = {
   ],
 };
 
+export const workOrderTypesConfig: CatalogCrudConfig = {
+  title: 'Tipos de orden de trabajo',
+  description: 'Cada tipo define un blueprint de flujo',
+  apiPath: '/work-order-types',
+  entityLabel: 'tipo de OT',
+  columns: [
+    { key: 'code', header: 'Código' },
+    { key: 'name', header: 'Nombre' },
+    {
+      key: 'blueprint',
+      header: 'Blueprint',
+      render: (row) => {
+        const bp = row.blueprint as { status?: string; version?: number } | null;
+        if (!bp) return <span className="text-xs text-[var(--color-text-secondary)]">Sin blueprint</span>;
+        return (
+          <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${bp.status === 'published' ? 'bg-green-50 text-green-700' : 'bg-yellow-50 text-yellow-700'}`}>
+            {bp.status === 'published' ? `v${bp.version} publicado` : 'borrador'}
+          </span>
+        );
+      },
+    },
+    activeColumn,
+  ],
+  fields: [
+    { name: 'code', label: 'Código', type: 'text', required: true, placeholder: 'CORTE' },
+    { name: 'name', label: 'Nombre', type: 'text', required: true },
+    { name: 'description', label: 'Descripción', type: 'text' },
+  ],
+};
+
 export type SettingsCatalogId =
   | 'work-sites'
   | 'warehouses'
@@ -297,10 +327,11 @@ export type SettingsCatalogId =
   | 'silhouettes'
   | 'sizes'
   | 'pantone-colors'
-  | 'supply-catalogs';
+  | 'supply-catalogs'
+  | 'work-order-types';
 
 export const settingsSectionLinks: {
-  id: SettingsCatalogId | 'supply-catalogs';
+  id: SettingsCatalogId;
   path: string;
   title: string;
   description: string;
@@ -317,5 +348,11 @@ export const settingsSectionLinks: {
     path: '/settings/supply-catalogs',
     title: 'Unidades y tipos de insumo',
     description: 'Unidades de medida y categorías de insumos',
+  },
+  {
+    id: 'work-order-types',
+    path: '/settings/work-order-types',
+    title: 'Tipos de OT',
+    description: 'Tipos de orden de trabajo y blueprints de flujo',
   },
 ];

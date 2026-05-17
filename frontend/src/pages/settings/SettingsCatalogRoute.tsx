@@ -11,6 +11,7 @@ import {
   rolesConfig,
   sizesConfig,
   workSitesConfig,
+  workOrderTypesConfig,
   type SettingsCatalogId,
 } from './catalogConfigs';
 import { SupplyCatalogsPage } from './SupplyCatalogsPage';
@@ -50,6 +51,10 @@ export function SettingsCatalogRoute() {
     return <SilhouettesCatalogPage />;
   }
 
+  if (catalogId === 'work-order-types') {
+    return <CatalogCrudPage config={workOrderTypesConfig} />;
+  }
+
   const valid: SettingsCatalogId[] = [
     'work-sites',
     'warehouses',
@@ -59,6 +64,7 @@ export function SettingsCatalogRoute() {
     'sizes',
     'pantone-colors',
     'supply-catalogs',
+    'work-order-types',
   ];
   if (!catalogId || !valid.includes(catalogId as SettingsCatalogId)) {
     return <Navigate to="/settings" replace />;

@@ -16,6 +16,7 @@ import { SuppliesModule } from './supplies/supplies.module';
 import { SupplyTypesModule } from './supply-types/supply-types.module';
 import { DevelopmentsModule } from './developments/developments.module';
 import { ProductionOrdersModule } from './production-orders/production-orders.module';
+import { WorkOrderTypesModule } from './work-order-types/work-order-types.module';
 import { WorkOrdersModule } from './work-orders/work-orders.module';
 import { InventoryModule } from './inventory/inventory.module';
 import { PurchasingModule } from './purchasing/purchasing.module';
@@ -46,6 +47,7 @@ import { WebhooksModule } from './webhooks/webhooks.module';
     SupplyTypesModule,
     DevelopmentsModule,
     ProductionOrdersModule,
+    WorkOrderTypesModule,
     WorkOrdersModule,
     InventoryModule,
     PurchasingModule,

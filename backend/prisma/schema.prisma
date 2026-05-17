@@ -113,6 +113,8 @@ model User {
   createdThirdPartyServices ThirdPartyService[] @relation("TPSCreator")
   createdShipments      Shipment[]             @relation("ShipmentCreator")
   createdShipmentItems  ShipmentItem[]         @relation("ShipmentItemCreator")
+  createdWOTypes        WorkOrderType[]        @relation("WOTypeCreator")
+  createdBlueprints     WorkOrderBlueprint[]   @relation("BlueprintCreator")
 
   @@map("users")
 }
@@ -491,6 +493,42 @@ model SupplierPaymentAllocation {
   @@map("supplier_payment_allocations")
 }
 
+// ─── WORK ORDER TYPES & BLUEPRINTS ────────────────────────
+
+model WorkOrderType {
+  id          String   @id @default(uuid()) @db.Uuid
+  code        String   @unique @db.VarChar(32)
+  name        String   @db.VarChar(255)
+  description String?
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  createdByUserId String @map("created_by_user_id") @db.Uuid
+
+  createdBy  User                  @relation("WOTypeCreator", fields: [createdByUserId], references: [id])
+  blueprint  WorkOrderBlueprint?
+  workOrders WorkOrder[]
+
+  @@map("work_order_types")
+}
+
+model WorkOrderBlueprint {
+  id               String    @id @default(uuid()) @db.Uuid
+  workOrderTypeId  String    @unique @map("work_order_type_id") @db.Uuid
+  version          Int       @default(1)
+  status           String    @default("draft") @db.VarChar(16)
+  definitionJson   Json      @map("definition_json")
+  publishedAt      DateTime? @map("published_at") @db.Timestamptz
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  createdByUserId  String    @map("created_by_user_id") @db.Uuid
+
+  createdBy     User          @relation("BlueprintCreator", fields: [createdByUserId], references: [id])
+  workOrderType WorkOrderType @relation(fields: [workOrderTypeId], references: [id])
+
+  @@map("work_order_blueprints")
+}
+
 // ─── PRODUCTION ───────────────────────────────────────────
 
 model Development {
@@ -586,18 +624,23 @@ model ProductionOrderSizeCurveItem {
 }
 
 model WorkOrder {
-  id                String   @id @default(uuid()) @db.Uuid
-  productionOrderId String   @map("production_order_id") @db.Uuid
-  workSiteId        String?  @map("work_site_id") @db.Uuid
-  code              String   @db.VarChar(64)
-  title             String?  @db.VarChar(255)
-  status            String   @db.VarChar(32)
-  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz
-  createdByUserId   String   @map("created_by_user_id") @db.Uuid
+  id                    String   @id @default(uuid()) @db.Uuid
+  productionOrderId     String   @map("production_order_id") @db.Uuid
+  workOrderTypeId       String?  @map("work_order_type_id") @db.Uuid
+  workSiteId            String?  @map("work_site_id") @db.Uuid
+  code                  String   @db.VarChar(64)
+  title                 String?  @db.VarChar(255)
+  status                String   @db.VarChar(32)
+  currentStateKey       String?  @map("current_state_key") @db.VarChar(128)
+  blueprintVersion      Int?     @map("blueprint_version")
+  blueprintSnapshotJson Json?    @map("blueprint_snapshot_json")
+  createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt             DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  createdByUserId       String   @map("created_by_user_id") @db.Uuid
 
   createdBy       User                     @relation("WOCreator", fields: [createdByUserId], references: [id])
   productionOrder ProductionOrder          @relation(fields: [productionOrderId], references: [id])
+  workOrderType   WorkOrderType?           @relation(fields: [workOrderTypeId], references: [id])
   workSite        WorkSite?                @relation(fields: [workSiteId], references: [id])
   pantoneColors   WorkOrderPantoneColor[]
   logs            WorkOrderLog[]
