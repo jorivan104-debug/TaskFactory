@@ -183,14 +183,14 @@ export function InventoryPage() {
               {formError && <p className="text-sm text-red-600 mb-3">{formError}</p>}
 
               <div className="space-y-3">
-                <motionlessField label="Nombre *">
+                <FormField label="Nombre *">
                   <input
                     className="w-full border rounded px-3 py-2 text-sm"
                     value={form.name}
                     onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
                   />
-                </motionlessField>
-                <motionlessField label="Tipo de insumo *">
+                </FormField>
+                <FormField label="Tipo de insumo *">
                   <select
                     className="w-full border rounded px-3 py-2 text-sm"
                     value={form.supplyTypeId}
@@ -203,8 +203,8 @@ export function InventoryPage() {
                       </option>
                     ))}
                   </select>
-                </motionlessField>
-                <motionlessField label="Unidad de medida *">
+                </FormField>
+                <FormField label="Unidad de medida *">
                   <select
                     className="w-full border rounded px-3 py-2 text-sm"
                     value={form.unitOfMeasureId}
@@ -217,18 +217,18 @@ export function InventoryPage() {
                       </option>
                     ))}
                   </select>
-                </motionlessField>
-                <motionlessField label="SKU">
+                </FormField>
+                <FormField label="SKU">
                   <input
                     className="w-full border rounded px-3 py-2 text-sm"
                     value={form.sku}
                     onChange={(e) => setForm((f) => ({ ...f, sku: e.target.value }))}
                   />
-                </motionlessField>
+                </FormField>
                 <p className="text-xs text-[var(--color-text-secondary)]">
                   Stock inicial (opcional): crea un ajuste de inventario
                 </p>
-                <motionlessField label="Almacén">
+                <FormField label="Almacén">
                   <select
                     className="w-full border rounded px-3 py-2 text-sm"
                     value={form.warehouseId}
@@ -241,8 +241,8 @@ export function InventoryPage() {
                       </option>
                     ))}
                   </select>
-                </motionlessField>
-                <motionlessField label="Cantidad inicial">
+                </FormField>
+                <FormField label="Cantidad inicial">
                   <input
                     type="number"
                     step="any"
@@ -250,14 +250,14 @@ export function InventoryPage() {
                     value={form.initialQuantity}
                     onChange={(e) => setForm((f) => ({ ...f, initialQuantity: e.target.value }))}
                   />
-                </motionlessField>
-                <motionlessField label="Notas del ajuste">
+                </FormField>
+                <FormField label="Notas del ajuste">
                   <input
                     className="w-full border rounded px-3 py-2 text-sm"
                     value={form.initialNotes}
                     onChange={(e) => setForm((f) => ({ ...f, initialNotes: e.target.value }))}
                   />
-                </motionlessField>
+                </FormField>
               </div>
 
               <div className="flex justify-end gap-2 mt-6">
@@ -277,12 +277,11 @@ export function InventoryPage() {
             </Card>
           </div>
         )}
-      </div>
     </div>
   );
 }
 
-function motionlessField({
+function FormField({
   label,
   children,
 }: {
