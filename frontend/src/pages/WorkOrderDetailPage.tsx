@@ -122,7 +122,7 @@ export function WorkOrderDetailPage() {
       </div>
 
       {graphNodes.length > 0 && (
-        <Card className="p-0 overflow-hidden" style={{ height: 320 }}>
+        <Card className="p-0 overflow-hidden h-[320px]">
           <ReactFlow
             nodes={graphNodes}
             edges={graphEdges}
