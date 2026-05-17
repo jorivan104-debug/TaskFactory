@@ -8,6 +8,12 @@ export class CreateBrandDto {
   @MaxLength(255)
   name: string;
 
+  @ApiProperty({ example: 'NK' })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(32)
+  abbreviation: string;
+
   @ApiPropertyOptional({ example: 1, description: 'Starting reference sequence number' })
   @IsOptional()
   @IsInt()

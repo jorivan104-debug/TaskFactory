@@ -19,8 +19,10 @@ export class SizesService {
     return item;
   }
 
-  create(dto: CreateSizeDto) {
-    return this.prisma.size.create({ data: dto });
+  create(dto: CreateSizeDto, userId: string) {
+    return this.prisma.size.create({
+      data: { ...dto, createdByUserId: userId },
+    });
   }
 
   async update(id: string, dto: UpdateSizeDto) {

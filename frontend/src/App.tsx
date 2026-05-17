@@ -15,6 +15,7 @@ import { AccountingSyncPage } from './pages/AccountingSyncPage';
 import { ReportsPage } from './pages/ReportsPage';
 import { SuppliersPage } from './pages/SuppliersPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { SettingsCatalogRoute } from './pages/settings/SettingsCatalogRoute';
 import { useAuthStore } from './stores/auth.store';
 
 const queryClient = new QueryClient({
@@ -52,6 +53,7 @@ export default function App() {
             <Route path="/reports" element={<ReportsPage />} />
             <Route path="/suppliers" element={<SuppliersPage />} />
             <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/settings/:catalogId" element={<SettingsCatalogRoute />} />
           </Route>
         </Routes>
       </BrowserRouter>

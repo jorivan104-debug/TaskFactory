@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Patch, Delete, Param, Body, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { CurrentUser } from '../auth/current-user.decorator';
 import { SilhouettesService } from './silhouettes.service';
 import { CreateSilhouetteCategoryDto } from './dto/create-silhouette-category.dto';
 import { UpdateSilhouetteCategoryDto } from './dto/update-silhouette-category.dto';
@@ -30,8 +31,8 @@ export class SilhouettesController {
 
   @Post('categories')
   @ApiOperation({ summary: 'Create silhouette category' })
-  createCategory(@Body() dto: CreateSilhouetteCategoryDto) {
-    return this.service.createCategory(dto);
+  createCategory(@Body() dto: CreateSilhouetteCategoryDto, @CurrentUser() user: { id: string }) {
+    return this.service.createCategory(dto, user.id);
   }
 
   @Patch('categories/:id')
@@ -62,8 +63,8 @@ export class SilhouettesController {
 
   @Post()
   @ApiOperation({ summary: 'Create silhouette' })
-  create(@Body() dto: CreateSilhouetteDto) {
-    return this.service.create(dto);
+  create(@Body() dto: CreateSilhouetteDto, @CurrentUser() user: { id: string }) {
+    return this.service.create(dto, user.id);
   }
 
   @Patch(':id')

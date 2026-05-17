@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Patch, Delete, Param, Body, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { CurrentUser } from '../auth/current-user.decorator';
 import { SupplyTypesService } from './supply-types.service';
 import { CreateSupplyTypeDto } from './dto/create-supply-type.dto';
 import { UpdateSupplyTypeDto } from './dto/update-supply-type.dto';
@@ -26,8 +27,8 @@ export class SupplyTypesController {
 
   @Post()
   @ApiOperation({ summary: 'Create supply type' })
-  create(@Body() dto: CreateSupplyTypeDto) {
-    return this.service.create(dto);
+  create(@Body() dto: CreateSupplyTypeDto, @CurrentUser() user: { id: string }) {
+    return this.service.create(dto, user.id);
   }
 
   @Patch(':id')

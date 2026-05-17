@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Patch, Delete, Param, Body, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { CurrentUser } from '../auth/current-user.decorator';
 import { PantoneColorsService } from './pantone-colors.service';
 import { CreatePantoneColorDto } from './dto/create-pantone-color.dto';
 import { UpdatePantoneColorDto } from './dto/update-pantone-color.dto';
@@ -26,8 +27,8 @@ export class PantoneColorsController {
 
   @Post()
   @ApiOperation({ summary: 'Create pantone color' })
-  create(@Body() dto: CreatePantoneColorDto) {
-    return this.service.create(dto);
+  create(@Body() dto: CreatePantoneColorDto, @CurrentUser() user: { id: string }) {
+    return this.service.create(dto, user.id);
   }
 
   @Patch(':id')

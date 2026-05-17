@@ -1,6 +1,6 @@
 // @ts-nocheck
 
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateBrandDto } from './dto/create-brand.dto';
 import { UpdateBrandDto } from './dto/update-brand.dto';
@@ -19,8 +19,10 @@ export class BrandsService {
     return item;
   }
 
-  create(dto: CreateBrandDto) {
-    return this.prisma.brand.create({ data: dto });
+  create(dto: CreateBrandDto, userId: string) {
+    return this.prisma.brand.create({
+      data: { ...dto, createdByUserId: userId },
+    });
   }
 
   async update(id: string, dto: UpdateBrandDto) {
@@ -30,10 +32,11 @@ export class BrandsService {
 
   async remove(id: string) {
     await this.findOne(id);
-    return this.prisma.brand.update({
-      where: { id },
-      data: { isActive: false },
-    });
+    const refs = await this.prisma.garmentReference.count({ where: { brandId: id } });
+    if (refs > 0) {
+      throw new ConflictException('Cannot delete a brand with garment references');
+    }
+    return this.prisma.brand.delete({ where: { id } });
   }
 
   async getNextSequence(id: string) {

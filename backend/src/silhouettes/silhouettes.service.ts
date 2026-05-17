@@ -29,8 +29,10 @@ export class SilhouettesService {
     return item;
   }
 
-  createCategory(dto: CreateSilhouetteCategoryDto) {
-    return this.prisma.silhouetteCategory.create({ data: dto });
+  createCategory(dto: CreateSilhouetteCategoryDto, userId: string) {
+    return this.prisma.silhouetteCategory.create({
+      data: { ...dto, createdByUserId: userId },
+    });
   }
 
   async updateCategory(id: string, dto: UpdateSilhouetteCategoryDto) {
@@ -64,8 +66,10 @@ export class SilhouettesService {
     return item;
   }
 
-  create(dto: CreateSilhouetteDto) {
-    return this.prisma.silhouette.create({ data: dto });
+  create(dto: CreateSilhouetteDto, userId: string) {
+    return this.prisma.silhouette.create({
+      data: { ...dto, createdByUserId: userId },
+    });
   }
 
   async update(id: string, dto: UpdateSilhouetteDto) {

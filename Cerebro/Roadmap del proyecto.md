@@ -129,8 +129,8 @@ Documento vivo para marcar avance. Marca los ítems completados cambiando `[ ]` 
 
 ## Fase 3 — Despliegue en producción y operación
 
-- [ ] Configuración en servidor (referencia acta: **Dokploy**)
-- [ ] Despliegue en **producción** y activación controlada
+- [x] Configuración en servidor (referencia acta: **Dokploy**) — stack Compose en staging (`taskfactory.app-sprint.com`); ver `docs/006-dokploy-deployment.md`
+- [ ] Despliegue en **producción** y activación controlada (go-live definitivo / dominio producción)
 - [ ] Monitoreo inicial: apuntar a **≥95%** disponibilidad el **primer mes** (meta del acta)
 - [ ] Capacitación de usuarios
 - [ ] Acompañamiento operativo post go-live

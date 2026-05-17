@@ -40,6 +40,16 @@ cd frontend && npm install && npm run dev
 
 Swagger UI available at `http://localhost:3000/api/docs` when the backend is running.
 
+## Despliegue (Dokploy)
+
+Staging/producción se despliega como **una aplicación Docker Compose** en [Dokploy](https://dokploy.com), usando `docker-compose.yml` (Postgres + API + frontend con Nginx).
+
+- URL de referencia: `https://taskfactory.app-sprint.com`
+- Traefik enruta al servicio **`frontend:80`**; las peticiones `/api` las proxifica Nginx hacia **`backend:3000`**.
+- Guía completa, variables de entorno y resolución de 502: **[docs/006-dokploy-deployment.md](docs/006-dokploy-deployment.md)**
+
+Variables mínimas en el panel de Dokploy: `POSTGRES_PASSWORD`, `JWT_SECRET`, `FRONTEND_URL`, `TASKFACTORY_HOST`.
+
 ## Autenticación con WorkOS AuthKit
 
 TaskFactory puede usar [WorkOS AuthKit](https://workos.com/docs/user-management) como inicio de sesión hospedado (SSO, magic link y password). Cuando está habilitado, la pantalla de login muestra el botón **Continuar con WorkOS** y oculta el formulario local.
@@ -72,7 +82,8 @@ FRONTEND_URL=https://taskfactory.app-sprint.com
 ├── docs/             # Architecture decisions & contracts
 ├── backend/          # NestJS API + Prisma
 ├── frontend/         # React SPA (Vite + Tailwind)
-└── docker-compose.yml
+├── docker-compose.yml           # Dokploy: postgres + backend + frontend
+└── docker-compose.dokploy.yml   # Dokploy alternativo: api + web (DB externa)
 ```
 
 ## Tech Stack

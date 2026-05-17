@@ -21,8 +21,10 @@ export class PantoneColorsService {
     return item;
   }
 
-  create(dto: CreatePantoneColorDto) {
-    return this.prisma.pantoneColor.create({ data: dto });
+  create(dto: CreatePantoneColorDto, userId: string) {
+    return this.prisma.pantoneColor.create({
+      data: { ...dto, createdByUserId: userId },
+    });
   }
 
   async update(id: string, dto: UpdatePantoneColorDto) {

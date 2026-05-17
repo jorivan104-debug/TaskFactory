@@ -30,4 +30,9 @@ if [ "$RUN_SEED_ON_START" = "1" ] || [ "$RUN_SEED_ON_START" = "true" ]; then
 fi
 
 echo "[taskfactory] iniciando la API NestJS..."
-exec sh -c "node dist/main || npm run start"
+if [ ! -f dist/main.js ]; then
+  echo "[taskfactory] ERROR: falta dist/main.js — la imagen no incluye el build de producción."
+  echo "[taskfactory] Reconstruya sin caché: docker compose build --no-cache backend"
+  exit 1
+fi
+exec node dist/main.js

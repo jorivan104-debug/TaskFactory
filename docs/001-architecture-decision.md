@@ -55,9 +55,12 @@ TaskFactory is a greenfield multi-plant production management platform replacing
 
 ### Deployment: Dokploy
 
-- Docker Compose for local dev (backend, frontend, postgres, redis)
-- Dokploy on internal server for staging/production
-- Automated backups for PostgreSQL
+- **Staging/production:** single Docker Compose stack (`docker-compose.yml`) on Dokploy — see [006-dokploy-deployment.md](./006-dokploy-deployment.md)
+- **Services:** `postgres`, `backend` (NestJS, `node dist/main.js`), `frontend` (Nginx + SPA, proxies `/api` to backend)
+- **Routing:** Traefik → `frontend:80` on external `dokploy-network`; do not expose `backend:3000` as the public domain
+- **Alternative compose:** `docker-compose.dokploy.yml` when PostgreSQL is hosted elsewhere (`DATABASE_URL` required)
+- Local development: manual Node processes or partial Docker (see root `README.md`)
+- Automated backups for PostgreSQL (operational; configure on server)
 
 ## Consequences
 

@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Patch, Delete, Param, Body, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { CurrentUser } from '../auth/current-user.decorator';
 import { UnitsOfMeasureService } from './units-of-measure.service';
 import { CreateUnitOfMeasureDto } from './dto/create-unit-of-measure.dto';
 import { UpdateUnitOfMeasureDto } from './dto/update-unit-of-measure.dto';
@@ -26,8 +27,8 @@ export class UnitsOfMeasureController {
 
   @Post()
   @ApiOperation({ summary: 'Create unit of measure' })
-  create(@Body() dto: CreateUnitOfMeasureDto) {
-    return this.service.create(dto);
+  create(@Body() dto: CreateUnitOfMeasureDto, @CurrentUser() user: { id: string }) {
+    return this.service.create(dto, user.id);
   }
 
   @Patch(':id')

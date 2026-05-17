@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
+import { RolesModule } from './roles/roles.module';
 import { WorkSitesModule } from './work-sites/work-sites.module';
 import { WarehousesModule } from './warehouses/warehouses.module';
 import { BrandsModule } from './brands/brands.module';
@@ -32,6 +33,7 @@ import { WebhooksModule } from './webhooks/webhooks.module';
     PrismaModule,
     AuthModule,
     UsersModule,
+    RolesModule,
     WorkSitesModule,
     WarehousesModule,
     BrandsModule,

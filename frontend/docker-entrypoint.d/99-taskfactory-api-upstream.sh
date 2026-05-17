@@ -28,8 +28,8 @@ echo "[taskfactory-nginx] proxy /api -> http://${UPSTREAM}"
 # Diagnóstico: si falla, en Dokploy el frontend y el API suelen estar en redes distintas
 # (dos aplicaciones separadas). Solución: un solo Docker Compose (docker-compose.dokploy.yml)
 # o enlazar redes / BACKEND_UPSTREAM al hostname real del contenedor API.
-if command -v wget >/dev/null 2>&1; then
-  if wget -q -O /dev/null -T 5 "http://${UPSTREAM}/api/auth/setup-status" 2>/dev/null; then
+if command -v curl >/dev/null 2>&1; then
+  if curl -fsS -m 5 "http://${UPSTREAM}/api/auth/setup-status" >/dev/null 2>&1; then
     echo "[taskfactory-nginx] comprobación: http://${UPSTREAM}/api responde (setup-status OK)"
   else
     echo "[taskfactory-nginx] ERROR: no hay conexión HTTP a http://${UPSTREAM}/api (causa habitual del 502)." >&2

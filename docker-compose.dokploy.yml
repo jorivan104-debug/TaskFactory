@@ -1,17 +1,17 @@
-# Despliegue en Dokploy como UNA aplicación tipo "Docker Compose" (recomendado).
-# Así `web` y `api` comparten red y el proxy interno resuelve siempre `api:3000`.
+# Compose alternativo: API + frontend SIN Postgres en el mismo stack.
+# Para el despliegue habitual (Postgres incluido) use docker-compose.yml — ver docs/006-dokploy-deployment.md.
 #
-# En Dokploy: nueva aplicación → Docker Compose → raíz del repo → este archivo.
-# Variables en el panel (ejemplos): DATABASE_URL, JWT_SECRET, JWT_EXPIRATION.
-#
-# Si Postgres está en OTRO stack de Dokploy, debe existir una red compartida entre
-# stacks o usar DATABASE_URL con un host alcanzable desde este compose.
+# En Dokploy: Compose path → ./docker-compose.dokploy.yml
+# Variables obligatorias: DATABASE_URL, JWT_SECRET
+# Red: todos los servicios en dokploy-network; dominio público → servicio web, puerto 80.
 
 services:
   api:
     build:
       context: ./backend
     restart: unless-stopped
+    networks:
+      - dokploy-network
     environment:
       DATABASE_URL: ${DATABASE_URL}
       JWT_SECRET: ${JWT_SECRET}
@@ -38,10 +38,32 @@ services:
     build:
       context: ./frontend
     restart: unless-stopped
+    networks:
+      - dokploy-network
     depends_on:
       api:
         condition: service_healthy
     ports:
-      - "${HOST_WEB_PORT:-80}:80"
+      - "80"
     environment:
       BACKEND_UPSTREAM: api:3000
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1/ >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.taskfactory-web.rule=Host(`${TASKFACTORY_HOST:-taskfactory.app-sprint.com}`)
+      - traefik.http.routers.taskfactory-web.entrypoints=web
+      - traefik.http.routers.taskfactory-web.service=taskfactory-web
+      - traefik.http.routers.taskfactory-web-secure.rule=Host(`${TASKFACTORY_HOST:-taskfactory.app-sprint.com}`)
+      - traefik.http.routers.taskfactory-web-secure.entrypoints=websecure
+      - traefik.http.routers.taskfactory-web-secure.tls.certresolver=letsencrypt
+      - traefik.http.routers.taskfactory-web-secure.service=taskfactory-web
+      - traefik.http.services.taskfactory-web.loadbalancer.server.port=80
+
+networks:
+  dokploy-network:
+    external: true

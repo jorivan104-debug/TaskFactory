@@ -19,8 +19,10 @@ export class SupplyTypesService {
     return item;
   }
 
-  create(dto: CreateSupplyTypeDto) {
-    return this.prisma.supplyType.create({ data: dto });
+  create(dto: CreateSupplyTypeDto, userId: string) {
+    return this.prisma.supplyType.create({
+      data: { ...dto, createdByUserId: userId },
+    });
   }
 
   async update(id: string, dto: UpdateSupplyTypeDto) {

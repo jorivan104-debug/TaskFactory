@@ -19,8 +19,10 @@ export class UnitsOfMeasureService {
     return item;
   }
 
-  create(dto: CreateUnitOfMeasureDto) {
-    return this.prisma.unitOfMeasure.create({ data: dto });
+  create(dto: CreateUnitOfMeasureDto, userId: string) {
+    return this.prisma.unitOfMeasure.create({
+      data: { ...dto, createdByUserId: userId },
+    });
   }
 
   async update(id: string, dto: UpdateUnitOfMeasureDto) {

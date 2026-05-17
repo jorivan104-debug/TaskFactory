@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
 import {
   Factory,
@@ -9,17 +10,18 @@ import {
   Palette,
   Box,
 } from 'lucide-react';
+import { settingsSectionLinks } from './settings/catalogConfigs';
 
-const settingSections = [
-  { title: 'Plantas', description: 'Gestionar plantas de producción', icon: Factory },
-  { title: 'Almacenes', description: 'Configurar almacenes e inventarios', icon: Warehouse },
-  { title: 'Roles', description: 'Roles y permisos de usuario', icon: ShieldCheck },
-  { title: 'Marcas', description: 'Marcas de productos', icon: Tag },
-  { title: 'Siluetas', description: 'Tipos de silueta para confección', icon: Shirt },
-  { title: 'Tallas', description: 'Curvas y tallas disponibles', icon: Ruler },
-  { title: 'Colores', description: 'Paleta de colores de productos', icon: Palette },
-  { title: 'Unidades y tipos de insumo', description: 'Unidades de medida y categorías de insumos', icon: Box },
-];
+const icons: Record<string, typeof Factory> = {
+  'work-sites': Factory,
+  warehouses: Warehouse,
+  roles: ShieldCheck,
+  brands: Tag,
+  silhouettes: Shirt,
+  sizes: Ruler,
+  'pantone-colors': Palette,
+  'supply-catalogs': Box,
+};
 
 export function SettingsPage() {
   return (
@@ -27,24 +29,26 @@ export function SettingsPage() {
       <h1 className="text-2xl font-bold">Configuración</h1>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        {settingSections.map((section) => (
-          <Card
-            key={section.title}
-            className="cursor-pointer hover:shadow-md transition-shadow"
-          >
-            <div className="flex items-start gap-4">
-              <div className="w-10 h-10 rounded-xl bg-[var(--color-accent-blue-light)] flex items-center justify-center shrink-0">
-                <section.icon size={20} className="text-[var(--color-primary)]" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-sm">{section.title}</h3>
-                <p className="text-xs text-[var(--color-text-secondary)] mt-1">
-                  {section.description}
-                </p>
-              </div>
-            </div>
-          </Card>
-        ))}
+        {settingsSectionLinks.map((section) => {
+          const Icon = icons[section.id] ?? Box;
+          return (
+            <Link key={section.id} to={section.path}>
+              <Card className="cursor-pointer hover:shadow-md transition-shadow h-full">
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-[var(--color-accent-blue-light)] flex items-center justify-center shrink-0">
+                    <Icon size={20} className="text-[var(--color-primary)]" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-sm">{section.title}</h3>
+                    <p className="text-xs text-[var(--color-text-secondary)] mt-1">
+                      {section.description}
+                    </p>
+                  </div>
+                </div>
+              </Card>
+            </Link>
+          );
+        })}
       </div>
     </div>
   );

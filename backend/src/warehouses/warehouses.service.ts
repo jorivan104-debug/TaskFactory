@@ -25,8 +25,10 @@ export class WarehousesService {
     return item;
   }
 
-  create(dto: CreateWarehouseDto) {
-    return this.prisma.warehouse.create({ data: dto });
+  create(dto: CreateWarehouseDto, userId: string) {
+    return this.prisma.warehouse.create({
+      data: { ...dto, createdByUserId: userId },
+    });
   }
 
   async update(id: string, dto: UpdateWarehouseDto) {
