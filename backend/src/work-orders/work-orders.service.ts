@@ -42,8 +42,6 @@ export class WorkOrdersService {
             brand: { select: { id: true, name: true, consecutivo: true } },
           },
         },
-        urgency: true,
-        supplyCostTotal: true,
       },
     });
   }
