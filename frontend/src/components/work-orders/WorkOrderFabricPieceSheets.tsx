@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Save, Trash2, Image as ImageIcon } from 'lucide-react';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';

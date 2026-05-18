@@ -29,7 +29,7 @@ interface ClosingActivity {
 interface WoProductionData {
   id: string;
   designInstructions?: string | null;
-  designAttachmentsJson?: DesignAttachment[] | null;
+  designAttachmentsJson?: unknown;
   patternSupplierId?: string | null;
   patternSupplier?: SupplierOption | null;
   cuttingSupplierId?: string | null;
