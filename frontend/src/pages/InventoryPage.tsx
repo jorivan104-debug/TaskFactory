@@ -13,6 +13,8 @@ interface SupplyItem {
   name: string;
   sku?: string;
   stockOnHand: string | number;
+  stockRequested: string | number;
+  stockShortage: string | number;
   isActive: boolean;
   supplyType?: { name: string };
   unitOfMeasure?: { code: string; name: string };
@@ -123,10 +125,29 @@ export function InventoryPage() {
     },
     {
       key: 'stockOnHand',
-      header: 'Stock total',
+      header: 'Disponible',
       render: (row: SupplyItem) => (
         <span className="font-mono">{formatQty(row.stockOnHand)}</span>
       ),
+    },
+    {
+      key: 'stockRequested',
+      header: 'Solicitado',
+      render: (row: SupplyItem) => (
+        <span className="font-mono text-amber-600">{formatQty(row.stockRequested)}</span>
+      ),
+    },
+    {
+      key: 'stockShortage',
+      header: 'Faltante',
+      render: (row: SupplyItem) => {
+        const v = Number(row.stockShortage);
+        return (
+          <span className={`font-mono ${v > 0 ? 'text-red-600 font-semibold' : ''}`}>
+            {formatQty(row.stockShortage)}
+          </span>
+        );
+      },
     },
     {
       key: 'unitOfMeasure',

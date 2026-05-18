@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Patch,
+  Delete,
   Param,
   Body,
   Query,
@@ -14,6 +15,7 @@ import { CurrentUser } from '../auth/current-user.decorator';
 import { GarmentReferencesService } from './garment-references.service';
 import { CreateGarmentReferenceDto } from './dto/create-garment-reference.dto';
 import { UpdateGarmentReferenceDto } from './dto/update-garment-reference.dto';
+import { UpsertSupplyRequirementDto } from './dto/upsert-supply-requirement.dto';
 
 @ApiTags('Garment References')
 @ApiBearerAuth()
@@ -72,5 +74,32 @@ export class GarmentReferencesController {
   @ApiOperation({ summary: 'Deactivate garment reference' })
   deactivate(@Param('id') id: string) {
     return this.service.deactivate(id);
+  }
+
+  // ── BOM (Supply Requirements) ──
+
+  @Get(':id/supply-requirements')
+  @ApiOperation({ summary: 'List BOM supply requirements for a catalog reference' })
+  findSupplyRequirements(@Param('id') id: string) {
+    return this.service.findSupplyRequirements(id);
+  }
+
+  @Post(':id/supply-requirements')
+  @ApiOperation({ summary: 'Add or update a supply requirement in BOM' })
+  upsertSupplyRequirement(
+    @Param('id') id: string,
+    @Body() dto: UpsertSupplyRequirementDto,
+    @CurrentUser() user: { id: string },
+  ) {
+    return this.service.upsertSupplyRequirement(id, dto, user.id);
+  }
+
+  @Delete(':id/supply-requirements/:supplyId')
+  @ApiOperation({ summary: 'Remove a supply requirement from BOM' })
+  removeSupplyRequirement(
+    @Param('id') id: string,
+    @Param('supplyId') supplyId: string,
+  ) {
+    return this.service.removeSupplyRequirement(id, supplyId);
   }
 }

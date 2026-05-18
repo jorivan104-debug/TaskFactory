@@ -96,6 +96,33 @@ export class WorkOrdersController {
     return this.service.executeTransition(id, transitionId, user.id);
   }
 
+  // ── Supply Items ──
+
+  @Get(':id/supply-items')
+  @ApiOperation({ summary: 'List supply items for work order' })
+  findSupplyItems(@Param('id') id: string) {
+    return this.service.findSupplyItems(id);
+  }
+
+  @Post(':id/supply-items')
+  @ApiOperation({ summary: 'Add or update a supply item' })
+  upsertSupplyItem(
+    @Param('id') id: string,
+    @Body() dto: { supplyId: string; quantityPerGarment: number; notes?: string },
+    @CurrentUser() user: { id: string },
+  ) {
+    return this.service.upsertSupplyItem(id, dto, user.id);
+  }
+
+  @Delete(':id/supply-items/:supplyId')
+  @ApiOperation({ summary: 'Remove a supply item' })
+  removeSupplyItem(
+    @Param('id') id: string,
+    @Param('supplyId') supplyId: string,
+  ) {
+    return this.service.removeSupplyItem(id, supplyId);
+  }
+
   // ── Pantone Colors ──
 
   @Post(':id/pantone-colors')

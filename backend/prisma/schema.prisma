@@ -11,13 +11,13 @@ datasource db {
 // ─── MULTI-SITE ───────────────────────────────────────────
 
 model WorkSite {
-  id        String   @id @default(uuid()) @db.Uuid
-  code      String   @unique @db.VarChar(32)
-  name      String   @db.VarChar(255)
-  isActive  Boolean  @default(true) @map("is_active")
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
-  createdByUserId String @map("created_by_user_id") @db.Uuid
+  id              String   @id @default(uuid()) @db.Uuid
+  code            String   @unique @db.VarChar(32)
+  name            String   @db.VarChar(255)
+  isActive        Boolean  @default(true) @map("is_active")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  createdByUserId String   @map("created_by_user_id") @db.Uuid
 
   createdBy  User        @relation("WorkSiteCreator", fields: [createdByUserId], references: [id])
   warehouses Warehouse[]
@@ -28,21 +28,24 @@ model WorkSite {
 }
 
 model Warehouse {
-  id         String   @id @default(uuid()) @db.Uuid
-  workSiteId String?  @map("work_site_id") @db.Uuid
-  code       String   @unique @db.VarChar(32)
-  name       String   @db.VarChar(255)
-  isActive   Boolean  @default(true) @map("is_active")
-  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz
-  createdByUserId String @map("created_by_user_id") @db.Uuid
+  id                     String   @id @default(uuid()) @db.Uuid
+  workSiteId             String?  @map("work_site_id") @db.Uuid
+  code                   String   @unique @db.VarChar(32)
+  name                   String   @db.VarChar(255)
+  isActive               Boolean  @default(true) @map("is_active")
+  isPrimarySupplies      Boolean  @default(false) @map("is_primary_supplies")
+  isPrimaryFinishedGoods Boolean  @default(false) @map("is_primary_finished_goods")
+  createdAt              DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt              DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  createdByUserId        String   @map("created_by_user_id") @db.Uuid
 
-  createdBy       User                  @relation("WarehouseCreator", fields: [createdByUserId], references: [id])
-  workSite        WorkSite?             @relation(fields: [workSiteId], references: [id])
-  stockLots       InventoryStockLot[]
-  movements       InventoryMovement[]
+  createdBy        User                     @relation("WarehouseCreator", fields: [createdByUserId], references: [id])
+  workSite         WorkSite?                @relation(fields: [workSiteId], references: [id])
+  stockLots        InventoryStockLot[]
+  movements        InventoryMovement[]
   purchaseReceipts SupplyPurchaseReceipt[]
-  purchaseOrders  SupplyPurchaseOrder[] @relation("DefaultWarehouse")
+  purchaseOrders   SupplyPurchaseOrder[]    @relation("DefaultWarehouse")
+  kittings         WorkOrderSupplyKitting[] @relation("KittingWarehouse")
 
   @@map("warehouses")
 }
@@ -50,79 +53,85 @@ model Warehouse {
 // ─── AUTH & RBAC ──────────────────────────────────────────
 
 model User {
-  id           String   @id @default(uuid()) @db.Uuid
-  email        String   @unique @db.VarChar(255)
-  passwordHash String   @map("password_hash")
-  fullName     String   @map("full_name") @db.VarChar(255)
-  isActive     Boolean  @default(true) @map("is_active")
-  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz
-  createdByUserId String? @map("created_by_user_id") @db.Uuid
+  id              String   @id @default(uuid()) @db.Uuid
+  email           String   @unique @db.VarChar(255)
+  passwordHash    String   @map("password_hash")
+  fullName        String   @map("full_name") @db.VarChar(255)
+  isActive        Boolean  @default(true) @map("is_active")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  createdByUserId String?  @map("created_by_user_id") @db.Uuid
 
-  createdBy User? @relation("UserCreator", fields: [createdByUserId], references: [id])
+  createdBy    User?  @relation("UserCreator", fields: [createdByUserId], references: [id])
   createdUsers User[] @relation("UserCreator")
 
-  userRoles      UserRole[]
-  auditLogs      AuditLog[]
+  userRoles UserRole[]
+  auditLogs AuditLog[]
 
   // Creator relations
-  createdWorkSites     WorkSite[]              @relation("WorkSiteCreator")
-  createdWarehouses    Warehouse[]             @relation("WarehouseCreator")
-  createdBrands        Brand[]                 @relation("BrandCreator")
-  createdSilhouetteCats SilhouetteCategory[]   @relation("SilCatCreator")
-  createdSilhouettes   Silhouette[]            @relation("SilhouetteCreator")
-  createdSuppliers     Supplier[]              @relation("SupplierCreator")
-  createdSupplyTypes   SupplyType[]            @relation("SupplyTypeCreator")
-  createdSupplies      Supply[]                @relation("SupplyCreator")
-  sellerSupplies       Supply[]                @relation("SupplySeller")
-  createdPantoneColors PantoneColor[]          @relation("PantoneCreator")
-  createdSizes         Size[]                  @relation("SizeCreator")
-  createdUnitsOfMeasure UnitOfMeasure[]        @relation("UomCreator")
-  createdGarmentRefs   GarmentReference[]      @relation("GarmentRefCreator")
-  createdWorkOrders    WorkOrder[]             @relation("WOCreator")
-  closedWorkOrders     WorkOrder[]             @relation("WOCloser")
-  createdWOColors      WorkOrderPantoneColor[] @relation("WOColorCreator")
-  createdWOLogs        WorkOrderLog[]          @relation("WOLogCreator")
-  createdSizeCurves    WorkOrderSizeCurveItem[] @relation("SizeCurveCreator")
-  createdRoles         Role[]                  @relation("RoleCreator")
-  createdUserRoles     UserRole[]              @relation("UserRoleCreator")
+  createdWorkSites      WorkSite[]               @relation("WorkSiteCreator")
+  createdWarehouses     Warehouse[]              @relation("WarehouseCreator")
+  createdBrands         Brand[]                  @relation("BrandCreator")
+  createdSilhouetteCats SilhouetteCategory[]     @relation("SilCatCreator")
+  createdSilhouettes    Silhouette[]             @relation("SilhouetteCreator")
+  createdSuppliers      Supplier[]               @relation("SupplierCreator")
+  createdSupplyTypes    SupplyType[]             @relation("SupplyTypeCreator")
+  createdSupplies       Supply[]                 @relation("SupplyCreator")
+  sellerSupplies        Supply[]                 @relation("SupplySeller")
+  createdPantoneColors  PantoneColor[]           @relation("PantoneCreator")
+  createdSizes          Size[]                   @relation("SizeCreator")
+  createdUnitsOfMeasure UnitOfMeasure[]          @relation("UomCreator")
+  createdGarmentRefs    GarmentReference[]       @relation("GarmentRefCreator")
+  createdWorkOrders     WorkOrder[]              @relation("WOCreator")
+  closedWorkOrders      WorkOrder[]              @relation("WOCloser")
+  createdWOColors       WorkOrderPantoneColor[]  @relation("WOColorCreator")
+  createdWOLogs         WorkOrderLog[]           @relation("WOLogCreator")
+  createdSizeCurves     WorkOrderSizeCurveItem[] @relation("SizeCurveCreator")
+  createdRoles          Role[]                   @relation("RoleCreator")
+  createdUserRoles      UserRole[]               @relation("UserRoleCreator")
 
-  createdPurchaseOrders     SupplyPurchaseOrder[]        @relation("SPOCreator")
-  createdPurchaseItems      SupplyPurchaseOrderItem[]    @relation("SPOItemCreator")
-  createdPurchaseReceipts   SupplyPurchaseReceipt[]      @relation("SPRCreator")
-  createdReceiptItems       SupplyPurchaseReceiptItem[]  @relation("SPRItemCreator")
-  createdSupplierInvoices   SupplierInvoice[]            @relation("SICreator")
-  createdInvoiceLines       SupplierInvoiceLine[]        @relation("SILineCreator")
-  createdSupplierPayments   SupplierPayment[]            @relation("SPCreator")
-  createdPaymentAllocations SupplierPaymentAllocation[]  @relation("SPACreator")
+  createdPurchaseOrders     SupplyPurchaseOrder[]       @relation("SPOCreator")
+  createdPurchaseItems      SupplyPurchaseOrderItem[]   @relation("SPOItemCreator")
+  createdPurchaseReceipts   SupplyPurchaseReceipt[]     @relation("SPRCreator")
+  createdReceiptItems       SupplyPurchaseReceiptItem[] @relation("SPRItemCreator")
+  createdSupplierInvoices   SupplierInvoice[]           @relation("SICreator")
+  createdInvoiceLines       SupplierInvoiceLine[]       @relation("SILineCreator")
+  createdSupplierPayments   SupplierPayment[]           @relation("SPCreator")
+  createdPaymentAllocations SupplierPaymentAllocation[] @relation("SPACreator")
 
-  createdProducts       Product[]              @relation("ProductCreator")
-  createdStockLots      InventoryStockLot[]    @relation("StockLotCreator")
-  createdMovements      InventoryMovement[]    @relation("MovementCreator")
-  createdSyncRequests   AccountingSyncRequest[] @relation("SyncReqCreator")
+  createdProducts     Product[]               @relation("ProductCreator")
+  createdStockLots    InventoryStockLot[]     @relation("StockLotCreator")
+  createdMovements    InventoryMovement[]     @relation("MovementCreator")
+  createdSyncRequests AccountingSyncRequest[] @relation("SyncReqCreator")
 
-  createdInternalOrders InternalOrder[]        @relation("IOCreator")
-  approvedInternalOrders InternalOrder[]       @relation("IOApprover")
-  createdIOItems        InternalOrderItem[]    @relation("IOItemCreator")
-  createdEmployees      Employee[]             @relation("EmployeeCreator")
-  createdTimeEntries    TimeEntry[]            @relation("TimeEntryCreator")
-  createdTaskAssignments TaskAssignment[]      @relation("TaskAssignmentCreator")
-  createdThirdPartyServices ThirdPartyService[] @relation("TPSCreator")
-  createdShipments      Shipment[]             @relation("ShipmentCreator")
-  createdShipmentItems  ShipmentItem[]         @relation("ShipmentItemCreator")
-  createdWOTypes        WorkOrderType[]        @relation("WOTypeCreator")
-  createdBlueprints     WorkOrderBlueprint[]   @relation("BlueprintCreator")
+  createdInternalOrders     InternalOrder[]                     @relation("IOCreator")
+  approvedInternalOrders    InternalOrder[]                     @relation("IOApprover")
+  createdIOItems            InternalOrderItem[]                 @relation("IOItemCreator")
+  createdEmployees          Employee[]                          @relation("EmployeeCreator")
+  createdTimeEntries        TimeEntry[]                         @relation("TimeEntryCreator")
+  createdTaskAssignments    TaskAssignment[]                    @relation("TaskAssignmentCreator")
+  createdThirdPartyServices ThirdPartyService[]                 @relation("TPSCreator")
+  createdShipments          Shipment[]                          @relation("ShipmentCreator")
+  createdShipmentItems      ShipmentItem[]                      @relation("ShipmentItemCreator")
+  createdWOTypes            WorkOrderType[]                     @relation("WOTypeCreator")
+  createdBlueprints         WorkOrderBlueprint[]                @relation("BlueprintCreator")
+  createdBOMs               GarmentReferenceSupplyRequirement[] @relation("BOMCreator")
+  createdWOSupplyItems      WorkOrderSupplyItem[]               @relation("WOSupplyItemCreator")
+  createdKittings           WorkOrderSupplyKitting[]            @relation("KittingCreator")
+  transportedKittings       WorkOrderSupplyKitting[]            @relation("KittingTransporter")
+  receivedKittings          WorkOrderSupplyKitting[]            @relation("KittingReceiver")
+  createdUnusedItems        WorkOrderSupplyKittingUnusedItem[]  @relation("UnusedItemCreator")
 
   @@map("users")
 }
 
 model Role {
-  id        String   @id @default(uuid()) @db.Uuid
-  key       String   @unique @db.VarChar(64)
-  name      String   @db.VarChar(128)
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
-  createdByUserId String @map("created_by_user_id") @db.Uuid
+  id              String   @id @default(uuid()) @db.Uuid
+  key             String   @unique @db.VarChar(64)
+  name            String   @db.VarChar(128)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  createdByUserId String   @map("created_by_user_id") @db.Uuid
 
   createdBy User       @relation("RoleCreator", fields: [createdByUserId], references: [id])
   userRoles UserRole[]
@@ -131,17 +140,17 @@ model Role {
 }
 
 model UserRole {
-  id         String   @id @default(uuid()) @db.Uuid
-  userId     String   @map("user_id") @db.Uuid
-  roleId     String   @map("role_id") @db.Uuid
-  workSiteId String?  @map("work_site_id") @db.Uuid
-  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
-  createdByUserId String @map("created_by_user_id") @db.Uuid
+  id              String   @id @default(uuid()) @db.Uuid
+  userId          String   @map("user_id") @db.Uuid
+  roleId          String   @map("role_id") @db.Uuid
+  workSiteId      String?  @map("work_site_id") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+  createdByUserId String   @map("created_by_user_id") @db.Uuid
 
-  user      User     @relation(fields: [userId], references: [id])
-  role      Role     @relation(fields: [roleId], references: [id])
+  user      User      @relation(fields: [userId], references: [id])
+  role      Role      @relation(fields: [roleId], references: [id])
   workSite  WorkSite? @relation(fields: [workSiteId], references: [id])
-  createdBy User     @relation("UserRoleCreator", fields: [createdByUserId], references: [id])
+  createdBy User      @relation("UserRoleCreator", fields: [createdByUserId], references: [id])
 
   @@unique([userId, roleId, workSiteId])
   @@map("user_roles")
@@ -160,22 +169,22 @@ model Brand {
   updatedAt             DateTime @updatedAt @map("updated_at") @db.Timestamptz
   createdByUserId       String   @map("created_by_user_id") @db.Uuid
 
-  createdBy       User               @relation("BrandCreator", fields: [createdByUserId], references: [id])
+  createdBy         User               @relation("BrandCreator", fields: [createdByUserId], references: [id])
   garmentReferences GarmentReference[]
 
   @@map("brands")
 }
 
 model SilhouetteCategory {
-  id        String   @id @default(uuid()) @db.Uuid
-  name      String   @unique @db.VarChar(128)
-  sortOrder Int?     @map("sort_order")
-  isActive  Boolean  @default(true) @map("is_active")
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
-  createdByUserId String @map("created_by_user_id") @db.Uuid
+  id              String   @id @default(uuid()) @db.Uuid
+  name            String   @unique @db.VarChar(128)
+  sortOrder       Int?     @map("sort_order")
+  isActive        Boolean  @default(true) @map("is_active")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  createdByUserId String   @map("created_by_user_id") @db.Uuid
 
-  createdBy   User          @relation("SilCatCreator", fields: [createdByUserId], references: [id])
+  createdBy   User         @relation("SilCatCreator", fields: [createdByUserId], references: [id])
   silhouettes Silhouette[]
 
   @@map("silhouette_categories")
@@ -192,33 +201,33 @@ model Silhouette {
   updatedAt            DateTime @updatedAt @map("updated_at") @db.Timestamptz
   createdByUserId      String   @map("created_by_user_id") @db.Uuid
 
-  createdBy         User                @relation("SilhouetteCreator", fields: [createdByUserId], references: [id])
+  createdBy          User               @relation("SilhouetteCreator", fields: [createdByUserId], references: [id])
   silhouetteCategory SilhouetteCategory @relation(fields: [silhouetteCategoryId], references: [id])
-  garmentReferences GarmentReference[]
+  garmentReferences  GarmentReference[]
 
   @@map("silhouettes")
 }
 
 model PantoneColor {
-  id            String   @id @default(uuid()) @db.Uuid
-  pantoneSystem String   @map("pantone_system") @db.VarChar(16)
-  pantoneCode   String   @map("pantone_code") @db.VarChar(32)
-  pantoneLabel  String?  @map("pantone_label") @db.VarChar(128)
-  name          String?  @db.VarChar(255)
-  hexApprox     String?  @map("hex_approx") @db.Char(7)
-  rgbR          Int?     @map("rgb_r") @db.SmallInt
-  rgbG          Int?     @map("rgb_g") @db.SmallInt
-  rgbB          Int?     @map("rgb_b") @db.SmallInt
-  labL          Decimal? @map("lab_l") @db.Decimal(6, 3)
-  labA          Decimal? @map("lab_a") @db.Decimal(6, 3)
-  labB          Decimal? @map("lab_b") @db.Decimal(6, 3)
-  notes         String?
-  isActive      Boolean  @default(true) @map("is_active")
-  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz
-  createdByUserId String @map("created_by_user_id") @db.Uuid
+  id              String   @id @default(uuid()) @db.Uuid
+  pantoneSystem   String   @map("pantone_system") @db.VarChar(16)
+  pantoneCode     String   @map("pantone_code") @db.VarChar(32)
+  pantoneLabel    String?  @map("pantone_label") @db.VarChar(128)
+  name            String?  @db.VarChar(255)
+  hexApprox       String?  @map("hex_approx") @db.Char(7)
+  rgbR            Int?     @map("rgb_r") @db.SmallInt
+  rgbG            Int?     @map("rgb_g") @db.SmallInt
+  rgbB            Int?     @map("rgb_b") @db.SmallInt
+  labL            Decimal? @map("lab_l") @db.Decimal(6, 3)
+  labA            Decimal? @map("lab_a") @db.Decimal(6, 3)
+  labB            Decimal? @map("lab_b") @db.Decimal(6, 3)
+  notes           String?
+  isActive        Boolean  @default(true) @map("is_active")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  createdByUserId String   @map("created_by_user_id") @db.Uuid
 
-  createdBy         User                     @relation("PantoneCreator", fields: [createdByUserId], references: [id])
+  createdBy         User                    @relation("PantoneCreator", fields: [createdByUserId], references: [id])
   garmentReferences GarmentReference[]
   workOrderColors   WorkOrderPantoneColor[]
 
@@ -227,45 +236,45 @@ model PantoneColor {
 }
 
 model Size {
-  id        String   @id @default(uuid()) @db.Uuid
-  name      String   @unique @db.VarChar(64)
-  sortOrder Int?     @map("sort_order")
-  isActive  Boolean  @default(true) @map("is_active")
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
-  createdByUserId String @map("created_by_user_id") @db.Uuid
+  id              String   @id @default(uuid()) @db.Uuid
+  name            String   @unique @db.VarChar(64)
+  sortOrder       Int?     @map("sort_order")
+  isActive        Boolean  @default(true) @map("is_active")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  createdByUserId String   @map("created_by_user_id") @db.Uuid
 
-  createdBy  User                        @relation("SizeCreator", fields: [createdByUserId], references: [id])
+  createdBy  User                     @relation("SizeCreator", fields: [createdByUserId], references: [id])
   sizeCurves WorkOrderSizeCurveItem[]
 
   @@map("sizes")
 }
 
 model UnitOfMeasure {
-  id        String   @id @default(uuid()) @db.Uuid
-  code      String   @unique @db.VarChar(16)
-  name      String   @db.VarChar(64)
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
-  createdByUserId String @map("created_by_user_id") @db.Uuid
+  id              String   @id @default(uuid()) @db.Uuid
+  code            String   @unique @db.VarChar(16)
+  name            String   @db.VarChar(64)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  createdByUserId String   @map("created_by_user_id") @db.Uuid
 
-  createdBy       User                        @relation("UomCreator", fields: [createdByUserId], references: [id])
-  supplies        Supply[]
-  purchaseItems   SupplyPurchaseOrderItem[]
-  stockLots       InventoryStockLot[]
-  movements       InventoryMovement[]
+  createdBy     User                      @relation("UomCreator", fields: [createdByUserId], references: [id])
+  supplies      Supply[]
+  purchaseItems SupplyPurchaseOrderItem[]
+  stockLots     InventoryStockLot[]
+  movements     InventoryMovement[]
 
   @@map("units_of_measure")
 }
 
 model SupplyType {
-  id        String   @id @default(uuid()) @db.Uuid
-  code      String   @unique @db.VarChar(32)
-  name      String   @db.VarChar(128)
-  sortOrder Int?     @map("sort_order")
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
-  createdByUserId String @map("created_by_user_id") @db.Uuid
+  id              String   @id @default(uuid()) @db.Uuid
+  code            String   @unique @db.VarChar(32)
+  name            String   @db.VarChar(128)
+  sortOrder       Int?     @map("sort_order")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  createdByUserId String   @map("created_by_user_id") @db.Uuid
 
   createdBy User     @relation("SupplyTypeCreator", fields: [createdByUserId], references: [id])
   supplies  Supply[]
@@ -276,29 +285,29 @@ model SupplyType {
 // ─── SUPPLIERS & SUPPLIES ─────────────────────────────────
 
 model Supplier {
-  id            String   @id @default(uuid()) @db.Uuid
-  legalName     String   @map("legal_name") @db.VarChar(255)
-  tradeName     String?  @map("trade_name") @db.VarChar(255)
-  taxId         String?  @map("tax_id") @db.VarChar(64)
-  country       String?  @db.VarChar(64)
-  city          String?  @db.VarChar(128)
-  address       String?
-  phone         String?  @db.VarChar(64)
-  email         String?  @db.VarChar(255)
-  website       String?  @db.VarChar(255)
-  contactPerson String?  @map("contact_person") @db.VarChar(255)
-  notes         String?
-  isActive      Boolean  @default(true) @map("is_active")
-  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz
-  createdByUserId String @map("created_by_user_id") @db.Uuid
+  id              String   @id @default(uuid()) @db.Uuid
+  legalName       String   @map("legal_name") @db.VarChar(255)
+  tradeName       String?  @map("trade_name") @db.VarChar(255)
+  taxId           String?  @map("tax_id") @db.VarChar(64)
+  country         String?  @db.VarChar(64)
+  city            String?  @db.VarChar(128)
+  address         String?
+  phone           String?  @db.VarChar(64)
+  email           String?  @db.VarChar(255)
+  website         String?  @db.VarChar(255)
+  contactPerson   String?  @map("contact_person") @db.VarChar(255)
+  notes           String?
+  isActive        Boolean  @default(true) @map("is_active")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  createdByUserId String   @map("created_by_user_id") @db.Uuid
 
-  createdBy       User                   @relation("SupplierCreator", fields: [createdByUserId], references: [id])
-  supplies        Supply[]               @relation("DefaultSupplier")
-  purchaseOrders  SupplyPurchaseOrder[]
-  invoices        SupplierInvoice[]
-  payments        SupplierPayment[]
-  workOrders      WorkOrder[]            @relation("PatternSupplier")
+  createdBy      User                  @relation("SupplierCreator", fields: [createdByUserId], references: [id])
+  supplies       Supply[]              @relation("DefaultSupplier")
+  purchaseOrders SupplyPurchaseOrder[]
+  invoices       SupplierInvoice[]
+  payments       SupplierPayment[]
+  workOrders     WorkOrder[]           @relation("PatternSupplier")
 
   @@map("suppliers")
 }
@@ -312,6 +321,8 @@ model Supply {
   unitOfMeasureId   String   @map("unit_of_measure_id") @db.Uuid
   stockOnHand       Decimal  @default(0) @map("stock_on_hand") @db.Decimal(18, 4)
   stockOnWay        Decimal  @default(0) @map("stock_on_way") @db.Decimal(18, 4)
+  stockRequested    Decimal  @default(0) @map("stock_requested") @db.Decimal(18, 4)
+  stockShortage     Decimal  @default(0) @map("stock_shortage") @db.Decimal(18, 4)
   purchaseUnitPrice Decimal? @map("purchase_unit_price") @db.Decimal(18, 4)
   sku               String?  @db.VarChar(64)
   description       String?
@@ -320,15 +331,17 @@ model Supply {
   updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz
   createdByUserId   String   @map("created_by_user_id") @db.Uuid
 
-  createdBy        User            @relation("SupplyCreator", fields: [createdByUserId], references: [id])
-  seller           User            @relation("SupplySeller", fields: [sellerUserId], references: [id])
-  supplyType       SupplyType      @relation(fields: [supplyTypeId], references: [id])
-  defaultSupplier  Supplier?       @relation("DefaultSupplier", fields: [defaultSupplierId], references: [id])
-  unitOfMeasure    UnitOfMeasure   @relation(fields: [unitOfMeasureId], references: [id])
-  garmentReferences GarmentReference[] @relation("FabricSupply")
-  purchaseItems    SupplyPurchaseOrderItem[]
-  stockLots        InventoryStockLot[]
-  movements        InventoryMovement[]
+  createdBy         User                                @relation("SupplyCreator", fields: [createdByUserId], references: [id])
+  seller            User                                @relation("SupplySeller", fields: [sellerUserId], references: [id])
+  supplyType        SupplyType                          @relation(fields: [supplyTypeId], references: [id])
+  defaultSupplier   Supplier?                           @relation("DefaultSupplier", fields: [defaultSupplierId], references: [id])
+  unitOfMeasure     UnitOfMeasure                       @relation(fields: [unitOfMeasureId], references: [id])
+  garmentReferences GarmentReference[]                  @relation("FabricSupply")
+  purchaseItems     SupplyPurchaseOrderItem[]
+  stockLots         InventoryStockLot[]
+  movements         InventoryMovement[]
+  bomRequirements   GarmentReferenceSupplyRequirement[]
+  woSupplyItems     WorkOrderSupplyItem[]
 
   @@map("supplies")
 }
@@ -336,21 +349,21 @@ model Supply {
 // ─── PURCHASING ───────────────────────────────────────────
 
 model SupplyPurchaseOrder {
-  id                 String   @id @default(uuid()) @db.Uuid
-  code               String   @unique @db.VarChar(64)
-  supplierId         String   @map("supplier_id") @db.Uuid
-  status             String   @db.VarChar(32)
+  id                 String    @id @default(uuid()) @db.Uuid
+  code               String    @unique @db.VarChar(64)
+  supplierId         String    @map("supplier_id") @db.Uuid
+  status             String    @db.VarChar(32)
   orderedAt          DateTime? @map("ordered_at") @db.Timestamptz
   expectedAt         DateTime? @map("expected_at") @db.Date
-  defaultWarehouseId String?  @map("default_warehouse_id") @db.Uuid
+  defaultWarehouseId String?   @map("default_warehouse_id") @db.Uuid
   notes              String?
-  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt          DateTime @updatedAt @map("updated_at") @db.Timestamptz
-  createdByUserId    String   @map("created_by_user_id") @db.Uuid
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  createdByUserId    String    @map("created_by_user_id") @db.Uuid
 
-  createdBy        User                       @relation("SPOCreator", fields: [createdByUserId], references: [id])
-  supplier         Supplier                   @relation(fields: [supplierId], references: [id])
-  defaultWarehouse Warehouse?                 @relation("DefaultWarehouse", fields: [defaultWarehouseId], references: [id])
+  createdBy        User                      @relation("SPOCreator", fields: [createdByUserId], references: [id])
+  supplier         Supplier                  @relation(fields: [supplierId], references: [id])
+  defaultWarehouse Warehouse?                @relation("DefaultWarehouse", fields: [defaultWarehouseId], references: [id])
   items            SupplyPurchaseOrderItem[]
   receipts         SupplyPurchaseReceipt[]
 
@@ -370,12 +383,12 @@ model SupplyPurchaseOrderItem {
   updatedAt             DateTime @updatedAt @map("updated_at") @db.Timestamptz
   createdByUserId       String   @map("created_by_user_id") @db.Uuid
 
-  createdBy      User                          @relation("SPOItemCreator", fields: [createdByUserId], references: [id])
-  purchaseOrder  SupplyPurchaseOrder           @relation(fields: [supplyPurchaseOrderId], references: [id])
-  supply         Supply                        @relation(fields: [supplyId], references: [id])
-  unitOfMeasure  UnitOfMeasure                 @relation(fields: [unitOfMeasureId], references: [id])
-  receiptItems   SupplyPurchaseReceiptItem[]
-  invoiceLines   SupplierInvoiceLine[]
+  createdBy     User                        @relation("SPOItemCreator", fields: [createdByUserId], references: [id])
+  purchaseOrder SupplyPurchaseOrder         @relation(fields: [supplyPurchaseOrderId], references: [id])
+  supply        Supply                      @relation(fields: [supplyId], references: [id])
+  unitOfMeasure UnitOfMeasure               @relation(fields: [unitOfMeasureId], references: [id])
+  receiptItems  SupplyPurchaseReceiptItem[]
+  invoiceLines  SupplierInvoiceLine[]
 
   @@unique([supplyPurchaseOrderId, supplyId])
   @@map("supply_purchase_order_items")
@@ -392,88 +405,88 @@ model SupplyPurchaseReceipt {
   updatedAt             DateTime @updatedAt @map("updated_at") @db.Timestamptz
   createdByUserId       String   @map("created_by_user_id") @db.Uuid
 
-  createdBy     User                          @relation("SPRCreator", fields: [createdByUserId], references: [id])
-  purchaseOrder SupplyPurchaseOrder           @relation(fields: [supplyPurchaseOrderId], references: [id])
-  warehouse     Warehouse                     @relation(fields: [warehouseId], references: [id])
+  createdBy     User                        @relation("SPRCreator", fields: [createdByUserId], references: [id])
+  purchaseOrder SupplyPurchaseOrder         @relation(fields: [supplyPurchaseOrderId], references: [id])
+  warehouse     Warehouse                   @relation(fields: [warehouseId], references: [id])
   items         SupplyPurchaseReceiptItem[]
 
   @@map("supply_purchase_receipts")
 }
 
 model SupplyPurchaseReceiptItem {
-  id                       String   @id @default(uuid()) @db.Uuid
-  supplyPurchaseReceiptId  String   @map("supply_purchase_receipt_id") @db.Uuid
-  supplyPurchaseOrderItemId String  @map("supply_purchase_order_item_id") @db.Uuid
-  quantityReceived         Decimal  @map("quantity_received") @db.Decimal(18, 4)
-  createdAt                DateTime @default(now()) @map("created_at") @db.Timestamptz
-  createdByUserId          String   @map("created_by_user_id") @db.Uuid
+  id                        String   @id @default(uuid()) @db.Uuid
+  supplyPurchaseReceiptId   String   @map("supply_purchase_receipt_id") @db.Uuid
+  supplyPurchaseOrderItemId String   @map("supply_purchase_order_item_id") @db.Uuid
+  quantityReceived          Decimal  @map("quantity_received") @db.Decimal(18, 4)
+  createdAt                 DateTime @default(now()) @map("created_at") @db.Timestamptz
+  createdByUserId           String   @map("created_by_user_id") @db.Uuid
 
-  createdBy     User                     @relation("SPRItemCreator", fields: [createdByUserId], references: [id])
-  receipt       SupplyPurchaseReceipt    @relation(fields: [supplyPurchaseReceiptId], references: [id])
-  orderItem     SupplyPurchaseOrderItem  @relation(fields: [supplyPurchaseOrderItemId], references: [id])
+  createdBy User                    @relation("SPRItemCreator", fields: [createdByUserId], references: [id])
+  receipt   SupplyPurchaseReceipt   @relation(fields: [supplyPurchaseReceiptId], references: [id])
+  orderItem SupplyPurchaseOrderItem @relation(fields: [supplyPurchaseOrderItemId], references: [id])
 
   @@map("supply_purchase_receipt_items")
 }
 
 model SupplierInvoice {
-  id            String   @id @default(uuid()) @db.Uuid
-  supplierId    String   @map("supplier_id") @db.Uuid
-  invoiceNumber String   @map("invoice_number") @db.VarChar(64)
-  invoiceDate   DateTime @map("invoice_date") @db.Date
-  dueDate       DateTime? @map("due_date") @db.Date
-  currency      String   @db.Char(3)
-  subtotal      Decimal  @db.Decimal(18, 4)
-  taxAmount     Decimal? @map("tax_amount") @db.Decimal(18, 4)
-  total         Decimal  @db.Decimal(18, 4)
-  status        String   @db.VarChar(32)
-  notes         String?
-  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz
-  createdByUserId String @map("created_by_user_id") @db.Uuid
+  id              String    @id @default(uuid()) @db.Uuid
+  supplierId      String    @map("supplier_id") @db.Uuid
+  invoiceNumber   String    @map("invoice_number") @db.VarChar(64)
+  invoiceDate     DateTime  @map("invoice_date") @db.Date
+  dueDate         DateTime? @map("due_date") @db.Date
+  currency        String    @db.Char(3)
+  subtotal        Decimal   @db.Decimal(18, 4)
+  taxAmount       Decimal?  @map("tax_amount") @db.Decimal(18, 4)
+  total           Decimal   @db.Decimal(18, 4)
+  status          String    @db.VarChar(32)
+  notes           String?
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  createdByUserId String    @map("created_by_user_id") @db.Uuid
 
-  createdBy    User                        @relation("SICreator", fields: [createdByUserId], references: [id])
-  supplier     Supplier                    @relation(fields: [supplierId], references: [id])
-  lines        SupplierInvoiceLine[]
-  allocations  SupplierPaymentAllocation[]
+  createdBy   User                        @relation("SICreator", fields: [createdByUserId], references: [id])
+  supplier    Supplier                    @relation(fields: [supplierId], references: [id])
+  lines       SupplierInvoiceLine[]
+  allocations SupplierPaymentAllocation[]
 
   @@unique([supplierId, invoiceNumber])
   @@map("supplier_invoices")
 }
 
 model SupplierInvoiceLine {
-  id                       String   @id @default(uuid()) @db.Uuid
-  supplierInvoiceId        String   @map("supplier_invoice_id") @db.Uuid
-  supplyPurchaseOrderItemId String? @map("supply_purchase_order_item_id") @db.Uuid
-  description              String?  @db.VarChar(255)
-  quantity                 Decimal? @db.Decimal(18, 4)
-  unitPrice                Decimal? @map("unit_price") @db.Decimal(18, 4)
-  lineTotal                Decimal  @map("line_total") @db.Decimal(18, 4)
-  createdAt                DateTime @default(now()) @map("created_at") @db.Timestamptz
-  createdByUserId          String   @map("created_by_user_id") @db.Uuid
+  id                        String   @id @default(uuid()) @db.Uuid
+  supplierInvoiceId         String   @map("supplier_invoice_id") @db.Uuid
+  supplyPurchaseOrderItemId String?  @map("supply_purchase_order_item_id") @db.Uuid
+  description               String?  @db.VarChar(255)
+  quantity                  Decimal? @db.Decimal(18, 4)
+  unitPrice                 Decimal? @map("unit_price") @db.Decimal(18, 4)
+  lineTotal                 Decimal  @map("line_total") @db.Decimal(18, 4)
+  createdAt                 DateTime @default(now()) @map("created_at") @db.Timestamptz
+  createdByUserId           String   @map("created_by_user_id") @db.Uuid
 
-  createdBy   User                     @relation("SILineCreator", fields: [createdByUserId], references: [id])
-  invoice     SupplierInvoice          @relation(fields: [supplierInvoiceId], references: [id])
-  orderItem   SupplyPurchaseOrderItem? @relation(fields: [supplyPurchaseOrderItemId], references: [id])
+  createdBy User                     @relation("SILineCreator", fields: [createdByUserId], references: [id])
+  invoice   SupplierInvoice          @relation(fields: [supplierInvoiceId], references: [id])
+  orderItem SupplyPurchaseOrderItem? @relation(fields: [supplyPurchaseOrderItemId], references: [id])
 
   @@map("supplier_invoice_lines")
 }
 
 model SupplierPayment {
-  id            String   @id @default(uuid()) @db.Uuid
-  supplierId    String   @map("supplier_id") @db.Uuid
-  paidAt        DateTime @map("paid_at") @db.Timestamptz
-  amount        Decimal  @db.Decimal(18, 4)
-  currency      String   @db.Char(3)
-  paymentMethod String?  @map("payment_method") @db.VarChar(32)
-  reference     String?  @db.VarChar(128)
-  notes         String?
-  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz
-  createdByUserId String @map("created_by_user_id") @db.Uuid
+  id              String   @id @default(uuid()) @db.Uuid
+  supplierId      String   @map("supplier_id") @db.Uuid
+  paidAt          DateTime @map("paid_at") @db.Timestamptz
+  amount          Decimal  @db.Decimal(18, 4)
+  currency        String   @db.Char(3)
+  paymentMethod   String?  @map("payment_method") @db.VarChar(32)
+  reference       String?  @db.VarChar(128)
+  notes           String?
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  createdByUserId String   @map("created_by_user_id") @db.Uuid
 
-  createdBy    User                        @relation("SPCreator", fields: [createdByUserId], references: [id])
-  supplier     Supplier                    @relation(fields: [supplierId], references: [id])
-  allocations  SupplierPaymentAllocation[]
+  createdBy   User                        @relation("SPCreator", fields: [createdByUserId], references: [id])
+  supplier    Supplier                    @relation(fields: [supplierId], references: [id])
+  allocations SupplierPaymentAllocation[]
 
   @@map("supplier_payments")
 }
@@ -496,16 +509,16 @@ model SupplierPaymentAllocation {
 // ─── WORK ORDER TYPES & BLUEPRINTS ────────────────────────
 
 model WorkOrderType {
-  id          String   @id @default(uuid()) @db.Uuid
-  code        String   @unique @db.VarChar(32)
-  name        String   @db.VarChar(255)
-  description String?
-  isActive    Boolean  @default(true) @map("is_active")
-  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz
-  createdByUserId String @map("created_by_user_id") @db.Uuid
+  id              String   @id @default(uuid()) @db.Uuid
+  code            String   @unique @db.VarChar(32)
+  name            String   @db.VarChar(255)
+  description     String?
+  isActive        Boolean  @default(true) @map("is_active")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  createdByUserId String   @map("created_by_user_id") @db.Uuid
 
-  createdBy  User                  @relation("WOTypeCreator", fields: [createdByUserId], references: [id])
+  createdBy  User                @relation("WOTypeCreator", fields: [createdByUserId], references: [id])
   blueprint  WorkOrderBlueprint?
   workOrders WorkOrder[]
 
@@ -513,15 +526,15 @@ model WorkOrderType {
 }
 
 model WorkOrderBlueprint {
-  id               String    @id @default(uuid()) @db.Uuid
-  workOrderTypeId  String    @unique @map("work_order_type_id") @db.Uuid
-  version          Int       @default(1)
-  status           String    @default("draft") @db.VarChar(16)
-  definitionJson   Json      @map("definition_json")
-  publishedAt      DateTime? @map("published_at") @db.Timestamptz
-  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz
-  createdByUserId  String    @map("created_by_user_id") @db.Uuid
+  id              String    @id @default(uuid()) @db.Uuid
+  workOrderTypeId String    @unique @map("work_order_type_id") @db.Uuid
+  version         Int       @default(1)
+  status          String    @default("draft") @db.VarChar(16)
+  definitionJson  Json      @map("definition_json")
+  publishedAt     DateTime? @map("published_at") @db.Timestamptz
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  createdByUserId String    @map("created_by_user_id") @db.Uuid
 
   createdBy     User          @relation("BlueprintCreator", fields: [createdByUserId], references: [id])
   workOrderType WorkOrderType @relation(fields: [workOrderTypeId], references: [id])
@@ -532,35 +545,40 @@ model WorkOrderBlueprint {
 // ─── PRODUCTION ───────────────────────────────────────────
 
 model GarmentReference {
-  id                    String   @id @default(uuid()) @db.Uuid
-  workOrderId           String?  @unique @map("work_order_id") @db.Uuid
-  code                  String   @unique @db.VarChar(9)
-  referenceType         String   @map("reference_type") @db.VarChar(32)
-  serie                 String   @db.VarChar(3)
-  referenceSequence     Int      @map("reference_sequence")
-  title                 String?  @db.VarChar(255)
-  status                String   @default("draft") @db.VarChar(32)
-  isActive              Boolean  @default(true) @map("is_active")
-  imageUrl              String?  @map("image_url")
-  brandId               String   @map("brand_id") @db.Uuid
-  silhouetteId          String?  @map("silhouette_id") @db.Uuid
-  fabricSupplyId        String?  @map("fabric_supply_id") @db.Uuid
-  pantoneColorId        String?  @map("pantone_color_id") @db.Uuid
-  garmentImageUrl1      String?  @map("garment_image_url_1")
-  garmentImageUrl2      String?  @map("garment_image_url_2")
-  garmentImageUrl3      String?  @map("garment_image_url_3")
-  cutGarmentsQty        Int?     @map("cut_garments_qty")
-  programmedGarmentsQty Int?     @map("programmed_garments_qty")
-  createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt             DateTime @updatedAt @map("updated_at") @db.Timestamptz
-  createdByUserId       String   @map("created_by_user_id") @db.Uuid
+  id                       String   @id @default(uuid()) @db.Uuid
+  workOrderId              String?  @unique @map("work_order_id") @db.Uuid
+  sourceCatalogReferenceId String?  @map("source_catalog_reference_id") @db.Uuid
+  code                     String   @unique @db.VarChar(9)
+  referenceType            String   @map("reference_type") @db.VarChar(32)
+  serie                    String   @db.VarChar(3)
+  referenceSequence        Int      @map("reference_sequence")
+  title                    String?  @db.VarChar(255)
+  status                   String   @default("draft") @db.VarChar(32)
+  isActive                 Boolean  @default(true) @map("is_active")
+  imageUrl                 String?  @map("image_url")
+  brandId                  String   @map("brand_id") @db.Uuid
+  silhouetteId             String?  @map("silhouette_id") @db.Uuid
+  fabricSupplyId           String?  @map("fabric_supply_id") @db.Uuid
+  pantoneColorId           String?  @map("pantone_color_id") @db.Uuid
+  garmentImageUrl1         String?  @map("garment_image_url_1")
+  garmentImageUrl2         String?  @map("garment_image_url_2")
+  garmentImageUrl3         String?  @map("garment_image_url_3")
+  cutGarmentsQty           Int?     @map("cut_garments_qty")
+  programmedGarmentsQty    Int?     @map("programmed_garments_qty")
+  totalSizesCount          Int      @default(0) @map("total_sizes_count")
+  createdAt                DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt                DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  createdByUserId          String   @map("created_by_user_id") @db.Uuid
 
-  createdBy    User          @relation("GarmentRefCreator", fields: [createdByUserId], references: [id])
-  workOrder    WorkOrder?    @relation(fields: [workOrderId], references: [id])
-  brand        Brand?        @relation(fields: [brandId], references: [id])
-  silhouette   Silhouette?   @relation(fields: [silhouetteId], references: [id])
-  fabricSupply Supply?       @relation("FabricSupply", fields: [fabricSupplyId], references: [id])
-  pantoneColor PantoneColor? @relation(fields: [pantoneColorId], references: [id])
+  createdBy              User                                @relation("GarmentRefCreator", fields: [createdByUserId], references: [id])
+  workOrder              WorkOrder?                          @relation(fields: [workOrderId], references: [id])
+  sourceCatalogReference GarmentReference?                   @relation("CatalogSource", fields: [sourceCatalogReferenceId], references: [id])
+  derivedReferences      GarmentReference[]                  @relation("CatalogSource")
+  brand                  Brand?                              @relation(fields: [brandId], references: [id])
+  silhouette             Silhouette?                         @relation(fields: [silhouetteId], references: [id])
+  fabricSupply           Supply?                             @relation("FabricSupply", fields: [fabricSupplyId], references: [id])
+  pantoneColor           PantoneColor?                       @relation(fields: [pantoneColorId], references: [id])
+  supplyRequirements     GarmentReferenceSupplyRequirement[]
 
   @@map("garment_references")
 }
@@ -569,16 +587,17 @@ model WorkOrderSizeCurveItem {
   id              String   @id @default(uuid()) @db.Uuid
   workOrderId     String   @map("work_order_id") @db.Uuid
   sizeId          String   @map("size_id") @db.Uuid
-  quantity        Decimal  @db.Decimal(18, 4)
+  programmedQty   Int      @default(0) @map("programmed_qty")
+  cutQty          Int      @default(0) @map("cut_qty")
   sortOrder       Int?     @map("sort_order")
   notes           String?
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
   updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz
   createdByUserId String   @map("created_by_user_id") @db.Uuid
 
-  createdBy  User      @relation("SizeCurveCreator", fields: [createdByUserId], references: [id])
-  workOrder  WorkOrder @relation(fields: [workOrderId], references: [id])
-  size       Size      @relation(fields: [sizeId], references: [id])
+  createdBy User      @relation("SizeCurveCreator", fields: [createdByUserId], references: [id])
+  workOrder WorkOrder @relation(fields: [workOrderId], references: [id])
+  size      Size      @relation(fields: [sizeId], references: [id])
 
   @@unique([workOrderId, sizeId])
   @@map("work_order_size_curve_items")
@@ -597,6 +616,7 @@ model WorkOrder {
   designInstructions          String?   @map("design_instructions")
   designInstructionsUpdatedAt DateTime? @map("design_instructions_updated_at") @db.Timestamptz
   designAttachmentsJson       Json?     @map("design_attachments_json")
+  catalogBomCopiedAt          DateTime? @map("catalog_bom_copied_at") @db.Timestamptz
   closedAt                    DateTime? @map("closed_at") @db.Timestamptz
   closedByUserId              String?   @map("closed_by_user_id") @db.Uuid
   currentStateKey             String?   @map("current_state_key") @db.VarChar(128)
@@ -616,20 +636,22 @@ model WorkOrder {
   pantoneColors    WorkOrderPantoneColor[]
   logs             WorkOrderLog[]
   taskAssignments  TaskAssignment[]
+  supplyItems      WorkOrderSupplyItem[]
+  kittings         WorkOrderSupplyKitting[]
 
   @@map("work_orders")
 }
 
 model WorkOrderPantoneColor {
-  id             String   @id @default(uuid()) @db.Uuid
-  workOrderId    String   @map("work_order_id") @db.Uuid
-  pantoneColorId String   @map("pantone_color_id") @db.Uuid
-  usageLabel     String?  @map("usage_label") @db.VarChar(64)
-  sortOrder      Int?     @map("sort_order")
-  notes          String?
-  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz
-  createdByUserId String  @map("created_by_user_id") @db.Uuid
+  id              String   @id @default(uuid()) @db.Uuid
+  workOrderId     String   @map("work_order_id") @db.Uuid
+  pantoneColorId  String   @map("pantone_color_id") @db.Uuid
+  usageLabel      String?  @map("usage_label") @db.VarChar(64)
+  sortOrder       Int?     @map("sort_order")
+  notes           String?
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  createdByUserId String   @map("created_by_user_id") @db.Uuid
 
   createdBy    User         @relation("WOColorCreator", fields: [createdByUserId], references: [id])
   workOrder    WorkOrder    @relation(fields: [workOrderId], references: [id])
@@ -640,16 +662,16 @@ model WorkOrderPantoneColor {
 }
 
 model WorkOrderLog {
-  id             String   @id @default(uuid()) @db.Uuid
-  workOrderId    String   @map("work_order_id") @db.Uuid
-  entryType      String   @map("entry_type") @db.VarChar(32)
-  summary        String?  @db.VarChar(255)
-  body           String?
-  metadataJson   Json?    @map("metadata_json")
-  changesJson    Json?    @map("changes_json")
-  performedAt    DateTime @map("performed_at") @db.Timestamptz
-  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz
-  createdByUserId String  @map("created_by_user_id") @db.Uuid
+  id              String   @id @default(uuid()) @db.Uuid
+  workOrderId     String   @map("work_order_id") @db.Uuid
+  entryType       String   @map("entry_type") @db.VarChar(32)
+  summary         String?  @db.VarChar(255)
+  body            String?
+  metadataJson    Json?    @map("metadata_json")
+  changesJson     Json?    @map("changes_json")
+  performedAt     DateTime @map("performed_at") @db.Timestamptz
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+  createdByUserId String   @map("created_by_user_id") @db.Uuid
 
   createdBy User      @relation("WOLogCreator", fields: [createdByUserId], references: [id])
   workOrder WorkOrder @relation(fields: [workOrderId], references: [id])
@@ -658,22 +680,128 @@ model WorkOrderLog {
   @@map("work_order_logs")
 }
 
+// ─── SUPPLY CONSUMPTION (BOM, WO Items, Kittings) ─────────
+
+model GarmentReferenceSupplyRequirement {
+  id                 String   @id @default(uuid()) @db.Uuid
+  garmentReferenceId String   @map("garment_reference_id") @db.Uuid
+  supplyId           String   @map("supply_id") @db.Uuid
+  quantityPerGarment Decimal  @map("quantity_per_garment") @db.Decimal(18, 4)
+  sortOrder          Int?     @map("sort_order")
+  notes              String?
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  createdByUserId    String   @map("created_by_user_id") @db.Uuid
+
+  createdBy        User                  @relation("BOMCreator", fields: [createdByUserId], references: [id])
+  garmentReference GarmentReference      @relation(fields: [garmentReferenceId], references: [id], onDelete: Cascade)
+  supply           Supply                @relation(fields: [supplyId], references: [id])
+  woSupplyItems    WorkOrderSupplyItem[] @relation("SourceRequirement")
+
+  @@unique([garmentReferenceId, supplyId])
+  @@map("garment_reference_supply_requirements")
+}
+
+model WorkOrderSupplyItem {
+  id                  String   @id @default(uuid()) @db.Uuid
+  workOrderId         String   @map("work_order_id") @db.Uuid
+  supplyId            String   @map("supply_id") @db.Uuid
+  quantityPerGarment  Decimal  @default(0) @map("quantity_per_garment") @db.Decimal(18, 4)
+  requiredQty         Decimal  @default(0) @map("required_qty") @db.Decimal(18, 4)
+  stagedQty           Decimal  @default(0) @map("staged_qty") @db.Decimal(18, 4)
+  executedQty         Decimal  @default(0) @map("executed_qty") @db.Decimal(18, 4)
+  sourceRequirementId String?  @map("source_requirement_id") @db.Uuid
+  notes               String?
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt           DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  createdByUserId     String   @map("created_by_user_id") @db.Uuid
+
+  createdBy         User                               @relation("WOSupplyItemCreator", fields: [createdByUserId], references: [id])
+  workOrder         WorkOrder                          @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  supply            Supply                             @relation(fields: [supplyId], references: [id])
+  sourceRequirement GarmentReferenceSupplyRequirement? @relation("SourceRequirement", fields: [sourceRequirementId], references: [id], onDelete: SetNull)
+  kittingItems      WorkOrderSupplyKittingItem[]
+  unusedItems       WorkOrderSupplyKittingUnusedItem[]
+
+  @@unique([workOrderId, supplyId])
+  @@map("work_order_supply_items")
+}
+
+model WorkOrderSupplyKitting {
+  id                  String    @id @default(uuid()) @db.Uuid
+  workOrderId         String    @map("work_order_id") @db.Uuid
+  code                String    @db.VarChar(64)
+  executionStateKey   String    @map("execution_state_key") @db.VarChar(128)
+  sourceWarehouseId   String    @map("source_warehouse_id") @db.Uuid
+  status              String    @default("draft") @db.VarChar(32)
+  notes               String?
+  transportedByUserId String?   @map("transported_by_user_id") @db.Uuid
+  transportedAt       DateTime? @map("transported_at") @db.Timestamptz
+  receivedByUserId    String?   @map("received_by_user_id") @db.Uuid
+  receivedAt          DateTime? @map("received_at") @db.Timestamptz
+  executedAt          DateTime? @map("executed_at") @db.Timestamptz
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt           DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  createdByUserId     String    @map("created_by_user_id") @db.Uuid
+
+  createdBy       User                               @relation("KittingCreator", fields: [createdByUserId], references: [id])
+  transportedBy   User?                              @relation("KittingTransporter", fields: [transportedByUserId], references: [id])
+  receivedBy      User?                              @relation("KittingReceiver", fields: [receivedByUserId], references: [id])
+  workOrder       WorkOrder                          @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  sourceWarehouse Warehouse                          @relation("KittingWarehouse", fields: [sourceWarehouseId], references: [id])
+  items           WorkOrderSupplyKittingItem[]
+  unusedItems     WorkOrderSupplyKittingUnusedItem[]
+
+  @@unique([workOrderId, code])
+  @@map("work_order_supply_kittings")
+}
+
+model WorkOrderSupplyKittingItem {
+  id                    String   @id @default(uuid()) @db.Uuid
+  kittingId             String   @map("kitting_id") @db.Uuid
+  workOrderSupplyItemId String   @map("work_order_supply_item_id") @db.Uuid
+  quantity              Decimal  @db.Decimal(18, 4)
+  executedQty           Decimal  @default(0) @map("executed_qty") @db.Decimal(18, 4)
+  createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt             DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  kitting             WorkOrderSupplyKitting @relation(fields: [kittingId], references: [id], onDelete: Cascade)
+  workOrderSupplyItem WorkOrderSupplyItem    @relation(fields: [workOrderSupplyItemId], references: [id], onDelete: Cascade)
+
+  @@map("work_order_supply_kitting_items")
+}
+
+model WorkOrderSupplyKittingUnusedItem {
+  id                    String   @id @default(uuid()) @db.Uuid
+  kittingId             String   @map("kitting_id") @db.Uuid
+  workOrderSupplyItemId String   @map("work_order_supply_item_id") @db.Uuid
+  quantity              Decimal  @db.Decimal(18, 4)
+  createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz
+  createdByUserId       String   @map("created_by_user_id") @db.Uuid
+
+  createdBy           User                   @relation("UnusedItemCreator", fields: [createdByUserId], references: [id])
+  kitting             WorkOrderSupplyKitting @relation(fields: [kittingId], references: [id], onDelete: Cascade)
+  workOrderSupplyItem WorkOrderSupplyItem    @relation(fields: [workOrderSupplyItemId], references: [id], onDelete: Cascade)
+
+  @@map("work_order_supply_kitting_unused_items")
+}
+
 // ─── PRODUCTS & INVENTORY ─────────────────────────────────
 
 model Product {
-  id          String   @id @default(uuid()) @db.Uuid
-  name        String   @db.VarChar(255)
-  sku         String?  @unique @db.VarChar(64)
-  productType String   @map("product_type") @db.VarChar(32)
-  description String?
-  isActive    Boolean  @default(true) @map("is_active")
-  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz
-  createdByUserId String @map("created_by_user_id") @db.Uuid
+  id              String   @id @default(uuid()) @db.Uuid
+  name            String   @db.VarChar(255)
+  sku             String?  @unique @db.VarChar(64)
+  productType     String   @map("product_type") @db.VarChar(32)
+  description     String?
+  isActive        Boolean  @default(true) @map("is_active")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  createdByUserId String   @map("created_by_user_id") @db.Uuid
 
-  createdBy  User                @relation("ProductCreator", fields: [createdByUserId], references: [id])
-  stockLots  InventoryStockLot[]
-  movements  InventoryMovement[]
+  createdBy User                @relation("ProductCreator", fields: [createdByUserId], references: [id])
+  stockLots InventoryStockLot[]
+  movements InventoryMovement[]
 
   @@map("products")
 }
@@ -733,14 +861,14 @@ model InventoryMovement {
 // ─── ACCOUNTING SYNC ──────────────────────────────────────
 
 model AccountingSyncRequest {
-  id          String   @id @default(uuid()) @db.Uuid
-  payloadJson Json     @map("payload_json")
-  status      String   @db.VarChar(32)
-  retryCount  Int      @default(0) @map("retry_count")
-  lastError   String?  @map("last_error")
-  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz
-  createdByUserId String @map("created_by_user_id") @db.Uuid
+  id              String   @id @default(uuid()) @db.Uuid
+  payloadJson     Json     @map("payload_json")
+  status          String   @db.VarChar(32)
+  retryCount      Int      @default(0) @map("retry_count")
+  lastError       String?  @map("last_error")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  createdByUserId String   @map("created_by_user_id") @db.Uuid
 
   createdBy User @relation("SyncReqCreator", fields: [createdByUserId], references: [id])
 
@@ -750,14 +878,14 @@ model AccountingSyncRequest {
 // ─── AUDIT ────────────────────────────────────────────────
 
 model AuditLog {
-  id         BigInt   @id @default(autoincrement())
-  userId     String?  @map("user_id") @db.Uuid
-  action     String   @db.VarChar(64)
-  entityType String   @map("entity_type") @db.VarChar(64)
-  entityId   String?  @map("entity_id") @db.Uuid
-  changesJson Json?   @map("changes_json")
-  ipAddress  String?  @map("ip_address") @db.VarChar(45)
-  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+  id          BigInt   @id @default(autoincrement())
+  userId      String?  @map("user_id") @db.Uuid
+  action      String   @db.VarChar(64)
+  entityType  String   @map("entity_type") @db.VarChar(64)
+  entityId    String?  @map("entity_id") @db.Uuid
+  changesJson Json?    @map("changes_json")
+  ipAddress   String?  @map("ip_address") @db.VarChar(45)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
 
   user User? @relation(fields: [userId], references: [id])
 
@@ -769,19 +897,19 @@ model AuditLog {
 // ─── INTERNAL ORDERS ──────────────────────────────────────
 
 model InternalOrder {
-  id          String    @id @default(uuid()) @db.Uuid
-  code        String    @unique @db.VarChar(64)
-  status      String    @db.VarChar(32)
-  requestedBy String    @map("requested_by") @db.VarChar(255)
-  notes       String?
-  approvedAt  DateTime? @map("approved_at") @db.Timestamptz
-  approvedByUserId String? @map("approved_by_user_id") @db.Uuid
-  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz
-  createdByUserId String @map("created_by_user_id") @db.Uuid
+  id               String    @id @default(uuid()) @db.Uuid
+  code             String    @unique @db.VarChar(64)
+  status           String    @db.VarChar(32)
+  requestedBy      String    @map("requested_by") @db.VarChar(255)
+  notes            String?
+  approvedAt       DateTime? @map("approved_at") @db.Timestamptz
+  approvedByUserId String?   @map("approved_by_user_id") @db.Uuid
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  createdByUserId  String    @map("created_by_user_id") @db.Uuid
 
-  createdBy  User               @relation("IOCreator", fields: [createdByUserId], references: [id])
-  approvedBy User?              @relation("IOApprover", fields: [approvedByUserId], references: [id])
+  createdBy  User                @relation("IOCreator", fields: [createdByUserId], references: [id])
+  approvedBy User?               @relation("IOApprover", fields: [approvedByUserId], references: [id])
   items      InternalOrderItem[]
 
   @@map("internal_orders")
@@ -805,18 +933,18 @@ model InternalOrderItem {
 // ─── HUMAN RESOURCES ──────────────────────────────────────
 
 model Employee {
-  id          String   @id @default(uuid()) @db.Uuid
-  userId      String?  @map("user_id") @db.Uuid
-  fullName    String   @map("full_name") @db.VarChar(255)
-  documentId  String?  @map("document_id") @db.VarChar(64)
-  phone       String?  @db.VarChar(64)
-  position    String?  @db.VarChar(128)
-  isActive    Boolean  @default(true) @map("is_active")
-  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz
-  createdByUserId String @map("created_by_user_id") @db.Uuid
+  id              String   @id @default(uuid()) @db.Uuid
+  userId          String?  @map("user_id") @db.Uuid
+  fullName        String   @map("full_name") @db.VarChar(255)
+  documentId      String?  @map("document_id") @db.VarChar(64)
+  phone           String?  @db.VarChar(64)
+  position        String?  @db.VarChar(128)
+  isActive        Boolean  @default(true) @map("is_active")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  createdByUserId String   @map("created_by_user_id") @db.Uuid
 
-  createdBy   User              @relation("EmployeeCreator", fields: [createdByUserId], references: [id])
+  createdBy   User             @relation("EmployeeCreator", fields: [createdByUserId], references: [id])
   timeEntries TimeEntry[]
   tasks       TaskAssignment[]
 
@@ -824,13 +952,13 @@ model Employee {
 }
 
 model TimeEntry {
-  id         String    @id @default(uuid()) @db.Uuid
-  employeeId String    @map("employee_id") @db.Uuid
-  clockIn    DateTime  @map("clock_in") @db.Timestamptz
-  clockOut   DateTime? @map("clock_out") @db.Timestamptz
-  notes      String?
-  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz
-  createdByUserId String @map("created_by_user_id") @db.Uuid
+  id              String    @id @default(uuid()) @db.Uuid
+  employeeId      String    @map("employee_id") @db.Uuid
+  clockIn         DateTime  @map("clock_in") @db.Timestamptz
+  clockOut        DateTime? @map("clock_out") @db.Timestamptz
+  notes           String?
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  createdByUserId String    @map("created_by_user_id") @db.Uuid
 
   createdBy User     @relation("TimeEntryCreator", fields: [createdByUserId], references: [id])
   employee  Employee @relation(fields: [employeeId], references: [id])
@@ -839,16 +967,16 @@ model TimeEntry {
 }
 
 model TaskAssignment {
-  id          String    @id @default(uuid()) @db.Uuid
-  employeeId  String    @map("employee_id") @db.Uuid
-  workOrderId String    @map("work_order_id") @db.Uuid
-  description String?   @db.VarChar(255)
-  status      String    @db.VarChar(32)
-  startedAt   DateTime? @map("started_at") @db.Timestamptz
-  completedAt DateTime? @map("completed_at") @db.Timestamptz
-  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz
-  createdByUserId String @map("created_by_user_id") @db.Uuid
+  id              String    @id @default(uuid()) @db.Uuid
+  employeeId      String    @map("employee_id") @db.Uuid
+  workOrderId     String    @map("work_order_id") @db.Uuid
+  description     String?   @db.VarChar(255)
+  status          String    @db.VarChar(32)
+  startedAt       DateTime? @map("started_at") @db.Timestamptz
+  completedAt     DateTime? @map("completed_at") @db.Timestamptz
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  createdByUserId String    @map("created_by_user_id") @db.Uuid
 
   createdBy User      @relation("TaskAssignmentCreator", fields: [createdByUserId], references: [id])
   employee  Employee  @relation(fields: [employeeId], references: [id])
@@ -860,19 +988,19 @@ model TaskAssignment {
 // ─── THIRD PARTIES ────────────────────────────────────────
 
 model ThirdPartyService {
-  id           String   @id @default(uuid()) @db.Uuid
-  supplierId   String?  @map("supplier_id") @db.Uuid
-  serviceName  String   @map("service_name") @db.VarChar(255)
-  description  String?
-  status       String   @db.VarChar(32)
-  startDate    DateTime? @map("start_date") @db.Date
-  endDate      DateTime? @map("end_date") @db.Date
-  cost         Decimal?  @db.Decimal(18, 4)
-  currency     String?   @db.Char(3)
-  notes        String?
-  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz
-  createdByUserId String @map("created_by_user_id") @db.Uuid
+  id              String    @id @default(uuid()) @db.Uuid
+  supplierId      String?   @map("supplier_id") @db.Uuid
+  serviceName     String    @map("service_name") @db.VarChar(255)
+  description     String?
+  status          String    @db.VarChar(32)
+  startDate       DateTime? @map("start_date") @db.Date
+  endDate         DateTime? @map("end_date") @db.Date
+  cost            Decimal?  @db.Decimal(18, 4)
+  currency        String?   @db.Char(3)
+  notes           String?
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  createdByUserId String    @map("created_by_user_id") @db.Uuid
 
   createdBy User @relation("TPSCreator", fields: [createdByUserId], references: [id])
 
@@ -903,17 +1031,16 @@ model Shipment {
 }
 
 model ShipmentItem {
-  id          String   @id @default(uuid()) @db.Uuid
-  shipmentId  String   @map("shipment_id") @db.Uuid
-  description String   @db.VarChar(255)
-  quantity    Decimal  @db.Decimal(18, 4)
-  notes       String?
-  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
-  createdByUserId String @map("created_by_user_id") @db.Uuid
+  id              String   @id @default(uuid()) @db.Uuid
+  shipmentId      String   @map("shipment_id") @db.Uuid
+  description     String   @db.VarChar(255)
+  quantity        Decimal  @db.Decimal(18, 4)
+  notes           String?
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+  createdByUserId String   @map("created_by_user_id") @db.Uuid
 
   createdBy User     @relation("ShipmentItemCreator", fields: [createdByUserId], references: [id])
   shipment  Shipment @relation(fields: [shipmentId], references: [id])
 
   @@map("shipment_items")
 }
-

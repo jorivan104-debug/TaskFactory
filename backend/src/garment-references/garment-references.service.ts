@@ -114,6 +114,69 @@ export class GarmentReferencesService {
     });
   }
 
+  // ── BOM (Supply Requirements) ──
+
+  async findSupplyRequirements(garmentReferenceId: string) {
+    await this.findOne(garmentReferenceId);
+    return this.prisma.garmentReferenceSupplyRequirement.findMany({
+      where: { garmentReferenceId },
+      orderBy: { sortOrder: 'asc' },
+      include: {
+        supply: {
+          select: { id: true, name: true, sku: true, supplyType: { select: { name: true } }, unitOfMeasure: { select: { code: true, name: true } } },
+        },
+      },
+    });
+  }
+
+  async upsertSupplyRequirement(
+    garmentReferenceId: string,
+    dto: { supplyId: string; quantityPerGarment: number; sortOrder?: number; notes?: string },
+    userId: string,
+  ) {
+    const ref = await this.findOne(garmentReferenceId);
+    if (ref.workOrderId) {
+      throw new BadRequestException('BOM solo se edita en referencias de catálogo');
+    }
+
+    return this.prisma.garmentReferenceSupplyRequirement.upsert({
+      where: {
+        garmentReferenceId_supplyId: { garmentReferenceId, supplyId: dto.supplyId },
+      },
+      create: {
+        garmentReferenceId,
+        supplyId: dto.supplyId,
+        quantityPerGarment: dto.quantityPerGarment,
+        sortOrder: dto.sortOrder ?? 0,
+        notes: dto.notes,
+        createdByUserId: userId,
+      },
+      update: {
+        quantityPerGarment: dto.quantityPerGarment,
+        sortOrder: dto.sortOrder,
+        notes: dto.notes,
+      },
+      include: {
+        supply: {
+          select: { id: true, name: true, sku: true, supplyType: { select: { name: true } }, unitOfMeasure: { select: { code: true, name: true } } },
+        },
+      },
+    });
+  }
+
+  async removeSupplyRequirement(garmentReferenceId: string, supplyId: string) {
+    const ref = await this.findOne(garmentReferenceId);
+    if (ref.workOrderId) {
+      throw new BadRequestException('BOM solo se edita en referencias de catálogo');
+    }
+
+    return this.prisma.garmentReferenceSupplyRequirement.delete({
+      where: {
+        garmentReferenceId_supplyId: { garmentReferenceId, supplyId },
+      },
+    });
+  }
+
   /** Genera código/serie para referencia operativa (OT). */
   async createForWorkOrder(
     tx: Parameters<Parameters<PrismaService['$transaction']>[0]>[0],
@@ -121,6 +184,7 @@ export class GarmentReferencesService {
       brandId: string;
       referenceType: string;
       createdByUserId: string;
+      sourceCatalogReferenceId?: string;
       title?: string;
       silhouetteId?: string;
       fabricSupplyId?: string;

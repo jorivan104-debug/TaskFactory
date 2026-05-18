@@ -385,4 +385,41 @@ export class InventoryService {
       throw new BadRequestException('No hay stock en ese almacén para esta salida');
     }
   }
+
+  /**
+   * Recalculate stock_requested and stock_shortage for one or all supplies.
+   * Formula:
+   *   demanda = SUM(required_qty - executed_qty) for open WOs
+   *   stock_requested = MAX(0, demanda - stock_on_hand - stock_on_way)
+   *   stock_shortage = stock_requested
+   */
+  async recalculateSupplyStockDemand(supplyId?: string) {
+    const whereSupply = supplyId ? { id: supplyId } : {};
+    const supplies = await this.prisma.supply.findMany({
+      where: { ...whereSupply, isActive: true },
+      select: { id: true, stockOnHand: true, stockOnWay: true },
+    });
+
+    for (const supply of supplies) {
+      const aggregate = await this.prisma.workOrderSupplyItem.aggregate({
+        where: {
+          supplyId: supply.id,
+          workOrder: { status: { in: ['pending', 'in_progress'] } },
+        },
+        _sum: { requiredQty: true, executedQty: true },
+      });
+
+      const totalRequired = Number(aggregate._sum.requiredQty ?? 0);
+      const totalExecuted = Number(aggregate._sum.executedQty ?? 0);
+      const demanda = totalRequired - totalExecuted;
+      const onHand = Number(supply.stockOnHand);
+      const onWay = Number(supply.stockOnWay);
+      const stockRequested = Math.max(0, demanda - onHand - onWay);
+
+      await this.prisma.supply.update({
+        where: { id: supply.id },
+        data: { stockRequested, stockShortage: stockRequested },
+      });
+    }
+  }
 }

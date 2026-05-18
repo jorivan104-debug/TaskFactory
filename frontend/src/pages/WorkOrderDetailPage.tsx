@@ -48,6 +48,9 @@ interface GarmentRef {
   silhouetteId?: string;
   fabricSupplyId?: string;
   garmentImageUrl1?: string;
+  totalSizesCount?: number;
+  programmedGarmentsQty?: number;
+  cutGarmentsQty?: number;
 }
 
 const referenceTypeLabel = (t?: string) => {
@@ -59,7 +62,8 @@ const referenceTypeLabel = (t?: string) => {
 interface SizeCurveItem {
   id: string;
   sizeId: string;
-  quantity: number;
+  programmedQty: number;
+  cutQty: number;
   sortOrder?: number;
 }
 
@@ -256,22 +260,33 @@ export function WorkOrderDetailPage() {
         <Card>
           <h2 className="font-semibold text-sm mb-3">Curva de tallas</h2>
           {wo.sizeCurve && wo.sizeCurve.length > 0 ? (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-[var(--color-text-secondary)]">
-                  <th className="pb-1">Talla</th>
-                  <th className="pb-1 text-right">Cantidad</th>
-                </tr>
-              </thead>
-              <tbody>
-                {wo.sizeCurve.map((item) => (
-                  <tr key={item.id}>
-                    <td>{item.sizeId}</td>
-                    <td className="text-right">{item.quantity}</td>
+            <>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-[var(--color-text-secondary)]">
+                    <th className="pb-1">Talla</th>
+                    <th className="pb-1 text-right">Programadas</th>
+                    <th className="pb-1 text-right">Cortadas</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {wo.sizeCurve.map((item) => (
+                    <tr key={item.id}>
+                      <td>{item.sizeId}</td>
+                      <td className="text-right">{item.programmedQty}</td>
+                      <td className="text-right">{item.cutQty}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {wo.garmentReference && (
+                <div className="mt-2 pt-2 border-t text-xs text-[var(--color-text-secondary)] flex gap-4">
+                  <span>Tallas: <strong>{wo.garmentReference.totalSizesCount ?? wo.sizeCurve.length}</strong></span>
+                  <span>Programadas: <strong>{wo.garmentReference.programmedGarmentsQty ?? 0}</strong></span>
+                  <span>Cortadas: <strong>{wo.garmentReference.cutGarmentsQty ?? 0}</strong></span>
+                </div>
+              )}
+            </>
           ) : (
             <p className="text-xs text-[var(--color-text-secondary)]">Sin curva de tallas</p>
           )}

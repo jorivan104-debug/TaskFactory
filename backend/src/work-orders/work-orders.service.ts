@@ -61,6 +61,11 @@ export class WorkOrdersService {
           },
         },
         sizeCurve: { orderBy: { sortOrder: 'asc' } },
+        supplyItems: {
+          include: {
+            supply: { select: { id: true, name: true, sku: true, supplyType: { select: { name: true } }, unitOfMeasure: { select: { code: true, name: true } } } },
+          },
+        },
       },
     });
     if (!item) throw new NotFoundException('Work order not found');
@@ -68,30 +73,70 @@ export class WorkOrdersService {
   }
 
   async create(dto: CreateWorkOrderDto, userId: string) {
-    const { workOrderTypeId, garmentReference, sizeCurve, ...rest } = dto;
+    const { workOrderTypeId, garmentReference, sizeCurve, catalogGarmentReferenceId, ...rest } = dto;
+
+    if (!workOrderTypeId) {
+      throw new BadRequestException('workOrderTypeId es obligatorio (blueprint requerido)');
+    }
+    const blueprint = await this.prisma.workOrderBlueprint.findUnique({
+      where: { workOrderTypeId },
+    });
+    if (!blueprint || blueprint.status !== 'published') {
+      throw new BadRequestException('El tipo de OT seleccionado no tiene un blueprint publicado');
+    }
 
     return this.prisma.$transaction(async (tx) => {
       const wo = await tx.workOrder.create({
         data: {
           ...rest,
           status: dto.status ?? 'pending',
-          workOrderTypeId: workOrderTypeId ?? null,
+          workOrderTypeId,
           createdByUserId: userId,
         },
       });
 
-      if (garmentReference) {
-        const { referenceType, brandId, ...refRest } = garmentReference;
-        await this.garmentRefs.createForWorkOrder(
+      let refData = garmentReference;
+      if (catalogGarmentReferenceId && !garmentReference) {
+        const catalog = await tx.garmentReference.findUnique({
+          where: { id: catalogGarmentReferenceId },
+        });
+        if (!catalog || catalog.workOrderId) {
+          throw new BadRequestException('Referencia de catálogo inválida');
+        }
+        refData = {
+          brandId: catalog.brandId,
+          referenceType: catalog.referenceType,
+          silhouetteId: catalog.silhouetteId ?? undefined,
+          fabricSupplyId: catalog.fabricSupplyId ?? undefined,
+          pantoneColorId: catalog.pantoneColorId ?? undefined,
+          garmentImageUrl1: catalog.garmentImageUrl1 ?? undefined,
+          garmentImageUrl2: catalog.garmentImageUrl2 ?? undefined,
+          garmentImageUrl3: catalog.garmentImageUrl3 ?? undefined,
+        };
+      }
+
+      if (refData) {
+        const { referenceType, brandId, ...refRest } = refData;
+        const createdRef = await this.garmentRefs.createForWorkOrder(
           tx,
           {
             brandId,
             referenceType,
             createdByUserId: userId,
+            sourceCatalogReferenceId: catalogGarmentReferenceId,
             ...refRest,
           },
           wo.id,
         );
+
+        // Copy BOM from catalog
+        if (catalogGarmentReferenceId) {
+          await this.copyBomToWorkOrder(tx, wo.id, catalogGarmentReferenceId, createdRef.fabricSupplyId, userId);
+          await tx.workOrder.update({
+            where: { id: wo.id },
+            data: { catalogBomCopiedAt: new Date() },
+          });
+        }
       }
 
       if (sizeCurve?.length) {
@@ -99,23 +144,21 @@ export class WorkOrdersService {
           data: sizeCurve.map((item) => ({
             workOrderId: wo.id,
             sizeId: item.sizeId,
-            quantity: item.quantity,
+            programmedQty: item.programmedQty,
+            cutQty: item.cutQty ?? 0,
             sortOrder: item.sortOrder ?? 0,
             createdByUserId: userId,
             updatedAt: new Date(),
           })),
         });
+        await this.syncSizeCurveTotals(wo.id, tx);
       }
 
-      if (workOrderTypeId) {
-        const blueprint = await tx.workOrderBlueprint.findUnique({
-          where: { workOrderTypeId },
-        });
-        if (blueprint && blueprint.status === 'published') {
-          const def = blueprint.definitionJson as unknown as BlueprintDefinition;
-          await this.engine.initializeFromBlueprint(wo.id, def, blueprint.version, tx);
-        }
-      }
+      const def = blueprint.definitionJson as unknown as BlueprintDefinition;
+      await this.engine.initializeFromBlueprint(wo.id, def, blueprint.version, tx);
+
+      // Recalculate required_qty for supply items
+      await this.recalculateRequiredQty(wo.id, tx);
 
       return tx.workOrder.findUnique({
         where: { id: wo.id },
@@ -124,11 +167,52 @@ export class WorkOrdersService {
           workSite: true,
           garmentReference: true,
           sizeCurve: { orderBy: { sortOrder: 'asc' } },
+          supplyItems: { include: { supply: { select: { id: true, name: true } } } },
           logs: { orderBy: { createdAt: 'desc' } },
           pantoneColors: true,
           taskAssignments: true,
         },
       });
+    });
+  }
+
+  private async copyBomToWorkOrder(
+    tx: any,
+    workOrderId: string,
+    catalogRefId: string,
+    fabricSupplyId: string | null | undefined,
+    userId: string,
+  ) {
+    const requirements = await tx.garmentReferenceSupplyRequirement.findMany({
+      where: { garmentReferenceId: catalogRefId },
+    });
+
+    const supplyIds = new Set(requirements.map((r: any) => r.supplyId as string));
+
+    // Include fabric as BOM line if not already present
+    if (fabricSupplyId && !supplyIds.has(fabricSupplyId)) {
+      requirements.push({
+        id: null,
+        supplyId: fabricSupplyId,
+        quantityPerGarment: 1,
+        garmentReferenceId: catalogRefId,
+      });
+    }
+
+    if (requirements.length === 0) return;
+
+    await tx.workOrderSupplyItem.createMany({
+      data: requirements.map((r: any) => ({
+        workOrderId,
+        supplyId: r.supplyId,
+        quantityPerGarment: Number(r.quantityPerGarment),
+        requiredQty: 0,
+        stagedQty: 0,
+        executedQty: 0,
+        sourceRequirementId: r.id ?? undefined,
+        createdByUserId: userId,
+        updatedAt: new Date(),
+      })),
     });
   }
 
@@ -202,19 +286,129 @@ export class WorkOrdersService {
   async upsertSizeCurve(workOrderId: string, dto: UpsertSizeCurveDto, userId: string) {
     await this.findOne(workOrderId);
 
-    await this.prisma.workOrderSizeCurveItem.deleteMany({
-      where: { workOrderId },
+    await this.prisma.$transaction(async (tx) => {
+      await tx.workOrderSizeCurveItem.deleteMany({ where: { workOrderId } });
+      await tx.workOrderSizeCurveItem.createMany({
+        data: dto.items.map((item) => ({
+          workOrderId,
+          sizeId: item.sizeId,
+          programmedQty: item.programmedQty,
+          cutQty: item.cutQty ?? 0,
+          sortOrder: item.sortOrder ?? 0,
+          createdByUserId: userId,
+          updatedAt: new Date(),
+        })),
+      });
+      await this.syncSizeCurveTotals(workOrderId, tx);
     });
 
-    return this.prisma.workOrderSizeCurveItem.createMany({
-      data: dto.items.map((item) => ({
+    return this.prisma.workOrderSizeCurveItem.findMany({
+      where: { workOrderId },
+      orderBy: { sortOrder: 'asc' },
+    });
+  }
+
+  async syncSizeCurveTotals(workOrderId: string, tx?: any) {
+    const db = tx ?? this.prisma;
+    const items = await db.workOrderSizeCurveItem.findMany({ where: { workOrderId } });
+    const totalSizesCount = items.length;
+    const programmedGarmentsQty = items.reduce(
+      (sum: number, i: { programmedQty: number }) => sum + i.programmedQty,
+      0,
+    );
+    const cutGarmentsQty = items.reduce(
+      (sum: number, i: { cutQty: number }) => sum + i.cutQty,
+      0,
+    );
+
+    const ref = await db.garmentReference.findUnique({ where: { workOrderId } });
+    if (ref) {
+      await db.garmentReference.update({
+        where: { id: ref.id },
+        data: { totalSizesCount, programmedGarmentsQty, cutGarmentsQty },
+      });
+    }
+  }
+
+  async recalculateRequiredQty(workOrderId: string, tx?: any) {
+    const db = tx ?? this.prisma;
+    const ref = await db.garmentReference.findUnique({ where: { workOrderId } });
+    if (!ref) return;
+
+    const cutTotal = ref.cutGarmentsQty ?? 0;
+    const programmedTotal = ref.programmedGarmentsQty ?? 0;
+    const multiplier = cutTotal > 0 ? cutTotal : programmedTotal;
+
+    const items = await db.workOrderSupplyItem.findMany({ where: { workOrderId } });
+    for (const item of items) {
+      const requiredQty = Number(item.quantityPerGarment) * multiplier;
+      await db.workOrderSupplyItem.update({
+        where: { id: item.id },
+        data: { requiredQty },
+      });
+    }
+  }
+
+  // ── Supply Items ──
+
+  async findSupplyItems(workOrderId: string) {
+    await this.findOne(workOrderId);
+    return this.prisma.workOrderSupplyItem.findMany({
+      where: { workOrderId },
+      include: {
+        supply: {
+          select: { id: true, name: true, sku: true, supplyType: { select: { name: true } }, unitOfMeasure: { select: { code: true, name: true } } },
+        },
+      },
+    });
+  }
+
+  async upsertSupplyItem(
+    workOrderId: string,
+    dto: { supplyId: string; quantityPerGarment: number; notes?: string },
+    userId: string,
+  ) {
+    const wo = await this.findOne(workOrderId);
+    const ref = await this.prisma.garmentReference.findUnique({ where: { workOrderId } });
+    const cutTotal = ref?.cutGarmentsQty ?? 0;
+    const programmedTotal = ref?.programmedGarmentsQty ?? 0;
+    const multiplier = cutTotal > 0 ? cutTotal : programmedTotal;
+    const requiredQty = dto.quantityPerGarment * multiplier;
+
+    return this.prisma.workOrderSupplyItem.upsert({
+      where: { workOrderId_supplyId: { workOrderId, supplyId: dto.supplyId } },
+      create: {
         workOrderId,
-        sizeId: item.sizeId,
-        quantity: item.quantity,
-        sortOrder: item.sortOrder ?? 0,
+        supplyId: dto.supplyId,
+        quantityPerGarment: dto.quantityPerGarment,
+        requiredQty,
+        notes: dto.notes,
         createdByUserId: userId,
-        updatedAt: new Date(),
-      })),
+      },
+      update: {
+        quantityPerGarment: dto.quantityPerGarment,
+        requiredQty,
+        notes: dto.notes,
+      },
+      include: {
+        supply: {
+          select: { id: true, name: true, sku: true, supplyType: { select: { name: true } }, unitOfMeasure: { select: { code: true, name: true } } },
+        },
+      },
+    });
+  }
+
+  async removeSupplyItem(workOrderId: string, supplyId: string) {
+    await this.findOne(workOrderId);
+    const item = await this.prisma.workOrderSupplyItem.findUnique({
+      where: { workOrderId_supplyId: { workOrderId, supplyId } },
+    });
+    if (!item) throw new NotFoundException('Supply item not found');
+    if (Number(item.stagedQty) > 0 || Number(item.executedQty) > 0) {
+      throw new BadRequestException('No se puede eliminar un insumo con cantidades alistadas o ejecutadas');
+    }
+    return this.prisma.workOrderSupplyItem.delete({
+      where: { id: item.id },
     });
   }
 

@@ -76,7 +76,13 @@ export class SizeCurveItemPayload {
   @ApiProperty({ example: 100 })
   @IsInt()
   @Min(0)
-  quantity: number;
+  programmedQty: number;
+
+  @ApiPropertyOptional({ example: 0 })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  cutQty?: number;
 
   @ApiPropertyOptional({ example: 1 })
   @IsOptional()
@@ -135,6 +141,11 @@ export class CreateWorkOrderDto {
   @IsOptional()
   @IsString()
   designInstructions?: string;
+
+  @ApiPropertyOptional({ description: 'Catalog garment reference to copy BOM from' })
+  @IsOptional()
+  @IsUUID()
+  catalogGarmentReferenceId?: string;
 
   @ApiPropertyOptional({ type: CreateGarmentReferencePayload })
   @IsOptional()
