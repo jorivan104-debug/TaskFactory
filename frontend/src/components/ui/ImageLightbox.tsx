@@ -45,5 +45,6 @@ export function ImageLightbox({ src, alt, label, onClose }: Props) {
           className="max-w-full max-h-full object-contain rounded"
         />
       </div>
+    </div>
   );
 }

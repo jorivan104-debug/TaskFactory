@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { BlueprintEngineService } from './blueprint-engine.service';
 import { CreateWorkOrderDto } from './dto/create-work-order.dto';
@@ -118,7 +119,14 @@ export class WorkOrdersService {
   }
 
   async create(dto: CreateWorkOrderDto, userId: string) {
-    const { workOrderTypeId, garmentReference, sizeCurve, catalogGarmentReferenceId, ...rest } = dto;
+    const {
+      workOrderTypeId,
+      garmentReference,
+      sizeCurve,
+      catalogGarmentReferenceId,
+      designAttachmentsJson,
+      ...rest
+    } = dto;
 
     if (!workOrderTypeId) {
       throw new BadRequestException('workOrderTypeId es obligatorio (blueprint requerido)');
@@ -138,6 +146,9 @@ export class WorkOrdersService {
           urgency: dto.urgency ?? 'normal',
           workOrderTypeId,
           createdByUserId: userId,
+          ...(designAttachmentsJson !== undefined && {
+            designAttachmentsJson: designAttachmentsJson as Prisma.InputJsonValue,
+          }),
         },
       });
 
