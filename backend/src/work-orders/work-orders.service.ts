@@ -42,6 +42,8 @@ export class WorkOrdersService {
             brand: { select: { id: true, name: true, consecutivo: true } },
           },
         },
+        urgency: true,
+        supplyCostTotal: true,
       },
     });
   }
@@ -58,12 +60,25 @@ export class WorkOrdersService {
         garmentReference: {
           include: {
             brand: { select: { id: true, name: true, consecutivo: true } },
+            silhouette: { select: { id: true, name: true } },
           },
         },
-        sizeCurve: { orderBy: { sortOrder: 'asc' } },
+        sizeCurve: {
+          orderBy: { sortOrder: 'asc' },
+          include: { size: { select: { id: true, name: true } } },
+        },
         supplyItems: {
           include: {
-            supply: { select: { id: true, name: true, sku: true, supplyType: { select: { name: true } }, unitOfMeasure: { select: { code: true, name: true } } } },
+            supply: {
+              select: {
+                id: true,
+                name: true,
+                sku: true,
+                purchaseUnitPrice: true,
+                supplyType: { select: { name: true } },
+                unitOfMeasure: { select: { code: true, name: true } },
+              },
+            },
           },
         },
       },
@@ -90,6 +105,7 @@ export class WorkOrdersService {
         data: {
           ...rest,
           status: dto.status ?? 'pending',
+          urgency: dto.urgency ?? 'normal',
           workOrderTypeId,
           createdByUserId: userId,
         },
@@ -159,6 +175,7 @@ export class WorkOrdersService {
 
       // Recalculate required_qty for supply items
       await this.recalculateRequiredQty(wo.id, tx);
+      await this.recalculateWorkOrderCost(wo.id, tx);
 
       return tx.workOrder.findUnique({
         where: { id: wo.id },
@@ -206,6 +223,7 @@ export class WorkOrdersService {
         workOrderId,
         supplyId: r.supplyId,
         quantityPerGarment: Number(r.quantityPerGarment),
+        unitCost: Number(r.unitCost ?? 0),
         requiredQty: 0,
         stagedQty: 0,
         executedQty: 0,
@@ -214,6 +232,23 @@ export class WorkOrdersService {
         updatedAt: new Date(),
       })),
     });
+  }
+
+  private async recalculateWorkOrderCost(workOrderId: string, tx?: any) {
+    const db = tx ?? this.prisma;
+    const items = await db.workOrderSupplyItem.findMany({ where: { workOrderId } });
+    const total = items.reduce(
+      (sum: number, i: { requiredQty: unknown; unitCost: unknown; quantityPerGarment: unknown }) => {
+        const qty = Number(i.requiredQty) > 0 ? Number(i.requiredQty) : Number(i.quantityPerGarment);
+        return sum + qty * Number(i.unitCost ?? 0);
+      },
+      0,
+    );
+    await db.workOrder.update({
+      where: { id: workOrderId },
+      data: { supplyCostTotal: total },
+    });
+    return total;
   }
 
   async update(id: string, dto: UpdateWorkOrderDto) {
@@ -300,6 +335,8 @@ export class WorkOrdersService {
         })),
       });
       await this.syncSizeCurveTotals(workOrderId, tx);
+      await this.recalculateRequiredQty(workOrderId, tx);
+      await this.recalculateWorkOrderCost(workOrderId, tx);
     });
 
     return this.prisma.workOrderSizeCurveItem.findMany({
@@ -347,6 +384,7 @@ export class WorkOrdersService {
         data: { requiredQty },
       });
     }
+    await this.recalculateWorkOrderCost(workOrderId, db);
   }
 
   // ── Supply Items ──
@@ -365,7 +403,7 @@ export class WorkOrdersService {
 
   async upsertSupplyItem(
     workOrderId: string,
-    dto: { supplyId: string; quantityPerGarment: number; notes?: string },
+    dto: { supplyId: string; quantityPerGarment: number; unitCost?: number; notes?: string },
     userId: string,
   ) {
     const wo = await this.findOne(workOrderId);
@@ -375,18 +413,20 @@ export class WorkOrdersService {
     const multiplier = cutTotal > 0 ? cutTotal : programmedTotal;
     const requiredQty = dto.quantityPerGarment * multiplier;
 
-    return this.prisma.workOrderSupplyItem.upsert({
+    const row = await this.prisma.workOrderSupplyItem.upsert({
       where: { workOrderId_supplyId: { workOrderId, supplyId: dto.supplyId } },
       create: {
         workOrderId,
         supplyId: dto.supplyId,
         quantityPerGarment: dto.quantityPerGarment,
+        unitCost: dto.unitCost ?? 0,
         requiredQty,
         notes: dto.notes,
         createdByUserId: userId,
       },
       update: {
         quantityPerGarment: dto.quantityPerGarment,
+        unitCost: dto.unitCost ?? undefined,
         requiredQty,
         notes: dto.notes,
       },
@@ -396,6 +436,8 @@ export class WorkOrdersService {
         },
       },
     });
+    await this.recalculateWorkOrderCost(workOrderId);
+    return row;
   }
 
   async removeSupplyItem(workOrderId: string, supplyId: string) {
@@ -407,9 +449,11 @@ export class WorkOrdersService {
     if (Number(item.stagedQty) > 0 || Number(item.executedQty) > 0) {
       throw new BadRequestException('No se puede eliminar un insumo con cantidades alistadas o ejecutadas');
     }
-    return this.prisma.workOrderSupplyItem.delete({
+    const deleted = await this.prisma.workOrderSupplyItem.delete({
       where: { id: item.id },
     });
+    await this.recalculateWorkOrderCost(workOrderId);
+    return deleted;
   }
 
   // ── Pantone Colors ──

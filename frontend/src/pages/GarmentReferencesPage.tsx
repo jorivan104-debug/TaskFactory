@@ -7,6 +7,7 @@ import { ActiveBadge } from '../components/settings/CatalogCrudPage';
 import { Plus, Pencil, X, Ban, Package, Trash2 } from 'lucide-react';
 import api from '../lib/api';
 import { ImageField } from '../components/garment-references/ImageField';
+import { formatMoney, lineCost } from '../lib/money';
 
 interface Brand {
   id: string;
@@ -26,6 +27,8 @@ interface GarmentRefRow {
   garmentImageUrl2?: string | null;
   garmentImageUrl3?: string | null;
   brand?: { id: string; name: string; consecutivo: number };
+  silhouette?: { id: string; name: string };
+  referenceCost?: string | number;
 }
 
 function thumbSrc(row: GarmentRefRow) {
@@ -43,6 +46,7 @@ const referenceTypeLabel = (t: string) =>
 interface FormState {
   brandId: string;
   referenceType: string;
+  silhouetteId: string;
   title: string;
   garmentImageUrl1: string;
   garmentImageUrl2: string;
@@ -52,6 +56,7 @@ interface FormState {
 const emptyForm: FormState = {
   brandId: '',
   referenceType: '',
+  silhouetteId: '',
   title: '',
   garmentImageUrl1: '',
   garmentImageUrl2: '',
@@ -70,6 +75,7 @@ interface BomRow {
   id: string;
   supplyId: string;
   quantityPerGarment: string | number;
+  unitCost: string | number;
   sortOrder?: number;
   supply: { id: string; name: string; sku?: string; supplyType?: { name: string }; unitOfMeasure?: { code: string; name: string } };
 }
@@ -95,6 +101,14 @@ export function GarmentReferencesPage() {
     queryFn: async () => {
       const { data } = await api.get('/brands');
       return data as Brand[];
+    },
+  });
+
+  const { data: silhouettes = [] } = useQuery({
+    queryKey: ['silhouettes'],
+    queryFn: async () => {
+      const { data } = await api.get('/silhouettes');
+      return data as { id: string; name: string }[];
     },
   });
 
@@ -130,6 +144,7 @@ export function GarmentReferencesPage() {
       if (editingId) {
         await api.patch(`/garment-references/${editingId}`, {
           title: form.title || undefined,
+          silhouetteId: form.silhouetteId || undefined,
           ...imagePayload(),
         });
       } else {
@@ -137,6 +152,7 @@ export function GarmentReferencesPage() {
           brandId: form.brandId,
           referenceType: form.referenceType,
           title: form.title || undefined,
+          silhouetteId: form.silhouetteId || undefined,
           ...imagePayload(),
         });
       }
@@ -177,6 +193,7 @@ export function GarmentReferencesPage() {
     setForm({
       brandId: row.brand?.id ?? '',
       referenceType: row.referenceType,
+      silhouetteId: row.silhouette?.id ?? '',
       title: row.title ?? '',
       garmentImageUrl1: row.garmentImageUrl1 ?? row.imageUrl ?? '',
       garmentImageUrl2: row.garmentImageUrl2 ?? '',
@@ -198,7 +215,7 @@ export function GarmentReferencesPage() {
   const [bomRefId, setBomRefId] = useState<string | null>(null);
   const [bomRefCode, setBomRefCode] = useState<string>('');
   const [bomAddOpen, setBomAddOpen] = useState(false);
-  const [bomForm, setBomForm] = useState({ supplyId: '', quantityPerGarment: '' });
+  const [bomForm, setBomForm] = useState({ supplyId: '', quantityPerGarment: '', unitCost: '' });
 
   const { data: bomRows = [], refetch: refetchBom } = useQuery({
     queryKey: ['bom', bomRefId],
@@ -223,20 +240,32 @@ export function GarmentReferencesPage() {
       await api.post(`/garment-references/${bomRefId}/supply-requirements`, {
         supplyId: bomForm.supplyId,
         quantityPerGarment: parseFloat(bomForm.quantityPerGarment),
+        unitCost: parseFloat(bomForm.unitCost) || 0,
       });
     },
     onSuccess: () => {
       refetchBom();
+      invalidate();
       setBomAddOpen(false);
-      setBomForm({ supplyId: '', quantityPerGarment: '' });
+      setBomForm({ supplyId: '', quantityPerGarment: '', unitCost: '' });
     },
   });
 
   const bomDeleteMutation = useMutation({
     mutationFn: (supplyId: string) =>
       api.delete(`/garment-references/${bomRefId}/supply-requirements/${supplyId}`),
-    onSuccess: () => refetchBom(),
+    onSuccess: () => {
+      refetchBom();
+      invalidate();
+    },
   });
+
+  const bomRefRow = rows.find((r) => r.id === bomRefId);
+  const bomLinesTotal = bomRows.reduce(
+    (sum, row) => sum + lineCost(row.quantityPerGarment, row.unitCost ?? 0),
+    0,
+  );
+  const referenceCostDisplay = bomRefRow?.referenceCost ?? bomLinesTotal;
 
   const openBom = (row: GarmentRefRow) => {
     setBomRefId(row.id);
@@ -422,6 +451,21 @@ export function GarmentReferencesPage() {
                 </p>
               )}
               <div>
+                <label className="block text-sm font-medium mb-1">Silueta</label>
+                <select
+                  className="w-full border rounded px-3 py-2 text-sm"
+                  value={form.silhouetteId}
+                  onChange={(e) => setForm((f) => ({ ...f, silhouetteId: e.target.value }))}
+                >
+                  <option value="">Sin silueta</option>
+                  {silhouettes.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
                 <label className="block text-sm font-medium mb-1">Título</label>
                 <input
                   className="w-full border rounded px-3 py-2 text-sm"
@@ -496,24 +540,39 @@ export function GarmentReferencesPage() {
             </div>
             <h3 className="font-semibold mb-2">Insumos</h3>
             {detailBom.length > 0 ? (
-              <table className="w-full text-sm mb-4">
-                <thead>
-                  <tr className="border-b text-left text-[var(--color-text-secondary)]">
-                    <th className="py-2">Insumo</th>
-                    <th className="py-2">Cant/prenda</th>
-                    <th className="py-2">Unidad</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {detailBom.map((row) => (
-                    <tr key={row.id} className="border-b">
-                      <td className="py-2">{row.supply.name}</td>
-                      <td className="py-2 font-mono">{Number(row.quantityPerGarment)}</td>
-                      <td className="py-2">{row.supply.unitOfMeasure?.code ?? '—'}</td>
+              <>
+                <table className="w-full text-sm mb-2">
+                  <thead>
+                    <tr className="border-b text-left text-[var(--color-text-secondary)]">
+                      <th className="py-2">Insumo</th>
+                      <th className="py-2 text-right">Cant/prenda</th>
+                      <th className="py-2 text-right">Valor unit.</th>
+                      <th className="py-2 text-right">Subtotal</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {detailBom.map((row) => (
+                      <tr key={row.id} className="border-b">
+                        <td className="py-2">{row.supply.name}</td>
+                        <td className="py-2 text-right font-mono">{Number(row.quantityPerGarment)}</td>
+                        <td className="py-2 text-right font-mono">${formatMoney(row.unitCost)}</td>
+                        <td className="py-2 text-right font-mono">
+                          ${formatMoney(lineCost(row.quantityPerGarment, row.unitCost))}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <p className="text-sm font-semibold mb-4 text-right">
+                  Costo de la referencia:{' '}
+                  <span className="font-mono text-[var(--color-primary)]">
+                    ${formatMoney(detailRef.referenceCost ?? detailBom.reduce(
+                      (s, r) => s + lineCost(r.quantityPerGarment, r.unitCost),
+                      0,
+                    ))}
+                  </span>
+                </p>
+              </>
             ) : (
               <p className="text-sm text-[var(--color-text-secondary)] mb-4">Sin insumos registrados.</p>
             )}
@@ -542,13 +601,14 @@ export function GarmentReferencesPage() {
             </p>
 
             {bomRows.length > 0 ? (
-              <table className="w-full text-sm mb-4">
+              <table className="w-full text-sm mb-2">
                 <thead>
                   <tr className="border-b text-left text-[var(--color-text-secondary)]">
                     <th className="py-2 pr-2">Insumo</th>
                     <th className="py-2 pr-2">Tipo</th>
-                    <th className="py-2 pr-2">Cant/prenda</th>
-                    <th className="py-2 pr-2">Unidad</th>
+                    <th className="py-2 pr-2 text-right">Cant/prenda</th>
+                    <th className="py-2 pr-2 text-right">Valor insumo</th>
+                    <th className="py-2 pr-2 text-right">Subtotal</th>
                     <th className="py-2 w-10"></th>
                   </tr>
                 </thead>
@@ -557,8 +617,11 @@ export function GarmentReferencesPage() {
                     <tr key={row.id} className="border-b">
                       <td className="py-2 pr-2">{row.supply.name}</td>
                       <td className="py-2 pr-2">{row.supply.supplyType?.name ?? '—'}</td>
-                      <td className="py-2 pr-2 font-mono">{Number(row.quantityPerGarment)}</td>
-                      <td className="py-2 pr-2">{row.supply.unitOfMeasure?.code ?? '—'}</td>
+                      <td className="py-2 pr-2 text-right font-mono">{Number(row.quantityPerGarment)}</td>
+                      <td className="py-2 pr-2 text-right font-mono">${formatMoney(row.unitCost)}</td>
+                      <td className="py-2 pr-2 text-right font-mono">
+                        ${formatMoney(lineCost(row.quantityPerGarment, row.unitCost))}
+                      </td>
                       <td className="py-2">
                         <button
                           type="button"
@@ -579,6 +642,13 @@ export function GarmentReferencesPage() {
               </p>
             )}
 
+            <p className="text-sm font-semibold mb-4 text-right border-t pt-3">
+              Costo de la referencia:{' '}
+              <span className="font-mono text-[var(--color-primary)]">
+                ${formatMoney(referenceCostDisplay)}
+              </span>
+            </p>
+
             {bomAddOpen ? (
               <div className="space-y-3 border rounded p-3">
                 <div>
@@ -598,18 +668,31 @@ export function GarmentReferencesPage() {
                       ))}
                   </select>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Cantidad por prenda *</label>
-                  <input
-                    type="number"
-                    step="0.0001"
-                    min="0"
-                    className="w-full border rounded px-3 py-2 text-sm"
-                    value={bomForm.quantityPerGarment}
-                    onChange={(e) =>
-                      setBomForm((f) => ({ ...f, quantityPerGarment: e.target.value }))
-                    }
-                  />
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Cantidad por prenda *</label>
+                    <input
+                      type="number"
+                      step="0.0001"
+                      min="0"
+                      className="w-full border rounded px-3 py-2 text-sm"
+                      value={bomForm.quantityPerGarment}
+                      onChange={(e) =>
+                        setBomForm((f) => ({ ...f, quantityPerGarment: e.target.value }))
+                      }
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Valor del insumo</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      className="w-full border rounded px-3 py-2 text-sm"
+                      value={bomForm.unitCost}
+                      onChange={(e) => setBomForm((f) => ({ ...f, unitCost: e.target.value }))}
+                    />
+                  </div>
                 </div>
                 <div className="flex gap-2">
                   <Button

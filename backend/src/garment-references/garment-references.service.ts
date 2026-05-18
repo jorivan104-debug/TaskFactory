@@ -24,8 +24,26 @@ export class GarmentReferencesService {
       orderBy: { createdAt: 'desc' },
       include: {
         brand: { select: { id: true, name: true, consecutivo: true } },
+        silhouette: { select: { id: true, name: true } },
       },
     });
+  }
+
+  private async recalculateReferenceCost(garmentReferenceId: string, tx?: any) {
+    const db = tx ?? this.prisma;
+    const rows = await db.garmentReferenceSupplyRequirement.findMany({
+      where: { garmentReferenceId },
+    });
+    const total = rows.reduce(
+      (sum: number, r: { quantityPerGarment: unknown; unitCost: unknown }) =>
+        sum + Number(r.quantityPerGarment) * Number(r.unitCost ?? 0),
+      0,
+    );
+    await db.garmentReference.update({
+      where: { id: garmentReferenceId },
+      data: { referenceCost: total },
+    });
+    return total;
   }
 
   async findOne(id: string) {
@@ -33,6 +51,7 @@ export class GarmentReferencesService {
       where: { id },
       include: {
         brand: { select: { id: true, name: true, consecutivo: true } },
+        silhouette: { select: { id: true, name: true } },
       },
     });
     if (!item) throw new NotFoundException('Garment reference not found');
@@ -139,7 +158,13 @@ export class GarmentReferencesService {
 
   async upsertSupplyRequirement(
     garmentReferenceId: string,
-    dto: { supplyId: string; quantityPerGarment: number; sortOrder?: number; notes?: string },
+    dto: {
+      supplyId: string;
+      quantityPerGarment: number;
+      unitCost?: number;
+      sortOrder?: number;
+      notes?: string;
+    },
     userId: string,
   ) {
     const ref = await this.findOne(garmentReferenceId);
@@ -147,7 +172,7 @@ export class GarmentReferencesService {
       throw new BadRequestException('BOM solo se edita en referencias de catálogo');
     }
 
-    return this.prisma.garmentReferenceSupplyRequirement.upsert({
+    const row = await this.prisma.garmentReferenceSupplyRequirement.upsert({
       where: {
         garmentReferenceId_supplyId: { garmentReferenceId, supplyId: dto.supplyId },
       },
@@ -155,12 +180,14 @@ export class GarmentReferencesService {
         garmentReferenceId,
         supplyId: dto.supplyId,
         quantityPerGarment: dto.quantityPerGarment,
+        unitCost: dto.unitCost ?? 0,
         sortOrder: dto.sortOrder ?? 0,
         notes: dto.notes,
         createdByUserId: userId,
       },
       update: {
         quantityPerGarment: dto.quantityPerGarment,
+        unitCost: dto.unitCost ?? undefined,
         sortOrder: dto.sortOrder,
         notes: dto.notes,
       },
@@ -170,6 +197,8 @@ export class GarmentReferencesService {
         },
       },
     });
+    await this.recalculateReferenceCost(garmentReferenceId);
+    return row;
   }
 
   async removeSupplyRequirement(garmentReferenceId: string, supplyId: string) {
@@ -178,11 +207,13 @@ export class GarmentReferencesService {
       throw new BadRequestException('BOM solo se edita en referencias de catálogo');
     }
 
-    return this.prisma.garmentReferenceSupplyRequirement.delete({
+    const deleted = await this.prisma.garmentReferenceSupplyRequirement.delete({
       where: {
         garmentReferenceId_supplyId: { garmentReferenceId, supplyId },
       },
     });
+    await this.recalculateReferenceCost(garmentReferenceId);
+    return deleted;
   }
 
   /** Genera código/serie para referencia operativa (OT). */

@@ -566,6 +566,7 @@ model GarmentReference {
   cutGarmentsQty           Int?     @map("cut_garments_qty")
   programmedGarmentsQty    Int?     @map("programmed_garments_qty")
   totalSizesCount          Int      @default(0) @map("total_sizes_count")
+  referenceCost            Decimal  @default(0) @map("reference_cost") @db.Decimal(18, 4)
   createdAt                DateTime @default(now()) @map("created_at") @db.Timestamptz
   updatedAt                DateTime @updatedAt @map("updated_at") @db.Timestamptz
   createdByUserId          String   @map("created_by_user_id") @db.Uuid
@@ -610,6 +611,8 @@ model WorkOrder {
   code                        String    @unique @db.VarChar(64)
   title                       String?   @db.VarChar(255)
   status                      String    @db.VarChar(32)
+  urgency                     String    @default("normal") @db.VarChar(32)
+  supplyCostTotal             Decimal   @default(0) @map("supply_cost_total") @db.Decimal(18, 4)
   productionType              String?   @map("production_type") @db.VarChar(32)
   patternSupplierId           String?   @map("pattern_supplier_id") @db.Uuid
   patterningDays              Int?      @map("patterning_days")
@@ -687,6 +690,7 @@ model GarmentReferenceSupplyRequirement {
   garmentReferenceId String   @map("garment_reference_id") @db.Uuid
   supplyId           String   @map("supply_id") @db.Uuid
   quantityPerGarment Decimal  @map("quantity_per_garment") @db.Decimal(18, 4)
+  unitCost           Decimal  @default(0) @map("unit_cost") @db.Decimal(18, 4)
   sortOrder          Int?     @map("sort_order")
   notes              String?
   createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz
@@ -707,6 +711,7 @@ model WorkOrderSupplyItem {
   workOrderId         String   @map("work_order_id") @db.Uuid
   supplyId            String   @map("supply_id") @db.Uuid
   quantityPerGarment  Decimal  @default(0) @map("quantity_per_garment") @db.Decimal(18, 4)
+  unitCost            Decimal  @default(0) @map("unit_cost") @db.Decimal(18, 4)
   requiredQty         Decimal  @default(0) @map("required_qty") @db.Decimal(18, 4)
   stagedQty           Decimal  @default(0) @map("staged_qty") @db.Decimal(18, 4)
   executedQty         Decimal  @default(0) @map("executed_qty") @db.Decimal(18, 4)

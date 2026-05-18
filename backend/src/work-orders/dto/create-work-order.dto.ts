@@ -126,6 +126,12 @@ export class CreateWorkOrderDto {
   @MaxLength(32)
   productionType?: string;
 
+  @ApiPropertyOptional({ enum: ['bajo', 'normal', 'alto', 'urgente'], default: 'normal' })
+  @IsOptional()
+  @IsString()
+  @IsIn(['bajo', 'normal', 'alto', 'urgente'])
+  urgency?: string;
+
   @ApiPropertyOptional({ example: 'uuid' })
   @IsOptional()
   @IsUUID()

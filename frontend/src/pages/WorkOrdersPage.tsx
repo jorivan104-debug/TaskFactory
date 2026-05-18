@@ -7,15 +7,16 @@ import { StatusBadge } from '../components/ui/StatusBadge';
 import { DataTable } from '../components/ui/DataTable';
 import { Plus, X } from 'lucide-react';
 import api from '../lib/api';
+import { SizeCurveEditor, type SizeCurveRow } from '../components/work-orders/SizeCurveEditor';
+import { UrgencyBadge } from '../components/work-orders/UrgencyBadge';
 
 interface WORow {
   id: string;
   code: string;
   title?: string;
   status: string;
+  urgency?: string;
   productionType?: string;
-  currentStateKey?: string;
-  blueprintSnapshotJson?: { nodes?: { id: string; data?: { label?: string } }[] };
   workOrderType?: { id: string; code: string; name: string };
   workSite?: { id: string; code: string; name: string };
 }
@@ -23,6 +24,11 @@ interface WORow {
 const columns = [
   { key: 'code', header: 'Código' },
   { key: 'title', header: 'Título', render: (row: WORow) => row.title ?? '—' },
+  {
+    key: 'urgency',
+    header: 'Urgencia',
+    render: (row: WORow) => <UrgencyBadge urgency={row.urgency} />,
+  },
   {
     key: 'workOrderType',
     header: 'Tipo',
@@ -37,15 +43,6 @@ const columns = [
     key: 'productionType',
     header: 'Prod.',
     render: (row: WORow) => <StatusBadge status={row.productionType ?? 'draft'} />,
-  },
-  {
-    key: 'currentStateKey',
-    header: 'Estado flujo',
-    render: (row: WORow) => {
-      if (!row.currentStateKey) return '—';
-      const node = row.blueprintSnapshotJson?.nodes?.find((n) => n.id === row.currentStateKey);
-      return node?.data?.label ?? row.currentStateKey;
-    },
   },
   {
     key: 'status',
@@ -69,6 +66,7 @@ interface FormState {
   title: string;
   productionType: string;
   catalogGarmentReferenceId: string;
+  urgency: string;
 }
 
 const emptyForm: FormState = {
@@ -78,7 +76,10 @@ const emptyForm: FormState = {
   title: '',
   productionType: '',
   catalogGarmentReferenceId: '',
+  urgency: 'normal',
 };
+
+const emptyCurve: SizeCurveRow[] = [];
 
 export function WorkOrdersPage() {
   const navigate = useNavigate();
@@ -86,6 +87,7 @@ export function WorkOrdersPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [formError, setFormError] = useState<string | null>(null);
+  const [sizeCurve, setSizeCurve] = useState<SizeCurveRow[]>(emptyCurve);
 
   const { data: rows = [] } = useQuery({
     queryKey: ['work-orders'],
@@ -133,6 +135,16 @@ export function WorkOrdersPage() {
       if (form.catalogGarmentReferenceId) {
         payload.catalogGarmentReferenceId = form.catalogGarmentReferenceId;
       }
+      if (form.urgency) payload.urgency = form.urgency;
+      const curveItems = sizeCurve
+        .filter((r) => r.sizeId && r.programmedQty !== '')
+        .map((r, idx) => ({
+          sizeId: r.sizeId,
+          programmedQty: parseInt(r.programmedQty, 10) || 0,
+          cutQty: parseInt(r.cutQty, 10) || 0,
+          sortOrder: idx,
+        }));
+      if (curveItems.length) payload.sizeCurve = curveItems;
       const { data } = await api.post('/work-orders', payload);
       return data;
     },
@@ -140,6 +152,7 @@ export function WorkOrdersPage() {
       queryClient.invalidateQueries({ queryKey: ['work-orders'] });
       setModalOpen(false);
       setForm(emptyForm);
+      setSizeCurve(emptyCurve);
       setFormError(null);
     },
     onError: (err: unknown) => {
@@ -166,10 +179,15 @@ export function WorkOrdersPage() {
       </Card>
 
       {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <Card className="w-full max-w-lg p-6 relative">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 overflow-y-auto">
+          <Card className="w-full max-w-2xl p-6 relative max-h-[90vh] overflow-y-auto">
             <button
-              onClick={() => { setModalOpen(false); setFormError(null); }}
+              onClick={() => {
+                setModalOpen(false);
+                setFormError(null);
+                setForm(emptyForm);
+                setSizeCurve(emptyCurve);
+              }}
               className="absolute top-3 right-3 text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
             >
               <X size={18} />
@@ -234,6 +252,19 @@ export function WorkOrdersPage() {
                 </select>
               </div>
               <div>
+                <label className="block text-sm font-medium mb-1">Urgencia</label>
+                <select
+                  className="w-full border rounded px-3 py-2 text-sm"
+                  value={form.urgency}
+                  onChange={(e) => setForm((f) => ({ ...f, urgency: e.target.value }))}
+                >
+                  <option value="bajo">Bajo</option>
+                  <option value="normal">Normal</option>
+                  <option value="alto">Alto</option>
+                  <option value="urgente">Urgente</option>
+                </select>
+              </div>
+              <div>
                 <label className="block text-sm font-medium mb-1">Referencia de catálogo</label>
                 <select
                   className="w-full border rounded px-3 py-2 text-sm"
@@ -262,10 +293,22 @@ export function WorkOrdersPage() {
                   </div>
                 )}
               </div>
+              <div className="border-t pt-3">
+                <label className="block text-sm font-semibold mb-2">Curva de tallas</label>
+                <SizeCurveEditor value={sizeCurve} onChange={setSizeCurve} />
+              </div>
             </div>
 
             <div className="flex justify-end gap-2 mt-6">
-              <Button variant="secondary" onClick={() => { setModalOpen(false); setFormError(null); }}>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setModalOpen(false);
+                  setFormError(null);
+                  setForm(emptyForm);
+                  setSizeCurve(emptyCurve);
+                }}
+              >
                 Cancelar
               </Button>
               <Button

@@ -108,7 +108,7 @@ export class WorkOrdersController {
   @ApiOperation({ summary: 'Add or update a supply item' })
   upsertSupplyItem(
     @Param('id') id: string,
-    @Body() dto: { supplyId: string; quantityPerGarment: number; notes?: string },
+    @Body() dto: { supplyId: string; quantityPerGarment: number; unitCost?: number; notes?: string },
     @CurrentUser() user: { id: string },
   ) {
     return this.service.upsertSupplyItem(id, dto, user.id);

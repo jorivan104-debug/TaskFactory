@@ -1,41 +1,14 @@
+import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import {
-  ReactFlow,
-  Background,
-  Controls,
-  type Node,
-  type Edge,
-  MarkerType,
-} from '@xyflow/react';
-import '@xyflow/react/dist/style.css';
-import { ArrowLeft, Play } from 'lucide-react';
+import { ArrowLeft, Pencil, Save } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { StatusBadge } from '../components/ui/StatusBadge';
+import { SizeCurveEditor, type SizeCurveRow } from '../components/work-orders/SizeCurveEditor';
+import { UrgencyBadge } from '../components/work-orders/UrgencyBadge';
+import { formatMoney, lineCost } from '../lib/money';
 import api from '../lib/api';
-
-interface BlueprintNode {
-  id: string;
-  position: { x: number; y: number };
-  data: { label?: string; isFinal?: boolean; task?: Record<string, unknown> };
-}
-
-interface BlueprintEdge {
-  id: string;
-  source: string;
-  target: string;
-  data?: { label?: string };
-}
-
-interface FlowContext {
-  workOrderId: string;
-  currentStateKey: string;
-  currentStateLabel: string;
-  availableTransitions: { edgeId: string; label: string; targetStateKey: string; targetLabel: string }[];
-  nodes: BlueprintNode[];
-  edges: BlueprintEdge[];
-}
 
 interface GarmentRef {
   id: string;
@@ -43,14 +16,49 @@ interface GarmentRef {
   referenceType?: string;
   serie?: string;
   title?: string;
-  brandId?: string;
-  brand?: { id: string; name: string; consecutivo: number };
-  silhouetteId?: string;
-  fabricSupplyId?: string;
-  garmentImageUrl1?: string;
+  brand?: { id: string; name: string };
+  silhouette?: { id: string; name: string };
+  garmentImageUrl1?: string | null;
+  garmentImageUrl2?: string | null;
+  garmentImageUrl3?: string | null;
+  referenceCost?: string | number;
   totalSizesCount?: number;
   programmedGarmentsQty?: number;
   cutGarmentsQty?: number;
+}
+
+interface SizeCurveItem {
+  id: string;
+  sizeId: string;
+  programmedQty: number;
+  cutQty: number;
+  size?: { id: string; name: string };
+}
+
+interface SupplyItemRow {
+  id: string;
+  supplyId: string;
+  quantityPerGarment: string | number;
+  unitCost: string | number;
+  requiredQty: string | number;
+  supply: { id: string; name: string; sku?: string; unitOfMeasure?: { code: string } };
+}
+
+interface WODetail {
+  id: string;
+  code: string;
+  title?: string;
+  status: string;
+  urgency?: string;
+  supplyCostTotal?: string | number;
+  productionType?: string;
+  workOrderType?: { name: string };
+  workSite?: { name: string };
+  garmentReference?: GarmentRef;
+  sizeCurve?: SizeCurveItem[];
+  supplyItems?: SupplyItemRow[];
+  logs: { id: string; entryType: string; summary?: string; performedAt: string }[];
+  taskAssignments: { id: string; description?: string; status: string }[];
 }
 
 const referenceTypeLabel = (t?: string) => {
@@ -59,34 +67,20 @@ const referenceTypeLabel = (t?: string) => {
   return t ?? '—';
 };
 
-interface SizeCurveItem {
-  id: string;
-  sizeId: string;
-  programmedQty: number;
-  cutQty: number;
-  sortOrder?: number;
-}
-
-interface WODetail {
-  id: string;
-  code: string;
-  title?: string;
-  status: string;
-  productionType?: string;
-  currentStateKey?: string;
-  blueprintSnapshotJson?: { nodes: BlueprintNode[]; edges: BlueprintEdge[] };
-  workOrderType?: { name: string };
-  workSite?: { name: string };
-  garmentReference?: GarmentRef;
-  sizeCurve?: SizeCurveItem[];
-  logs: { id: string; entryType: string; summary?: string; performedAt: string; changesJson?: Record<string, unknown> }[];
-  taskAssignments: { id: string; description?: string; status: string }[];
+function toCurveRows(items: SizeCurveItem[]): SizeCurveRow[] {
+  return items.map((i) => ({
+    sizeId: i.sizeId,
+    programmedQty: String(i.programmedQty),
+    cutQty: String(i.cutQty),
+  }));
 }
 
 export function WorkOrderDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [editingCurve, setEditingCurve] = useState(false);
+  const [curveRows, setCurveRows] = useState<SizeCurveRow[]>([]);
 
   const { data: wo, isLoading } = useQuery({
     queryKey: ['work-order', id],
@@ -97,22 +91,22 @@ export function WorkOrderDetailPage() {
     enabled: !!id,
   });
 
-  const { data: flow } = useQuery({
-    queryKey: ['work-order-flow', id],
-    queryFn: async () => {
-      const { data } = await api.get(`/work-orders/${id}/flow`);
-      return data as FlowContext;
-    },
-    enabled: !!id && !!wo?.currentStateKey,
-  });
-
-  const transitionMutation = useMutation({
-    mutationFn: async (transitionId: string) => {
-      await api.post(`/work-orders/${id}/transitions/${transitionId}`);
+  const saveCurveMutation = useMutation({
+    mutationFn: async () => {
+      await api.post(`/work-orders/${id}/size-curve`, {
+        items: curveRows
+          .filter((r) => r.sizeId && r.programmedQty !== '')
+          .map((r, idx) => ({
+            sizeId: r.sizeId,
+            programmedQty: parseInt(r.programmedQty, 10) || 0,
+            cutQty: parseInt(r.cutQty, 10) || 0,
+            sortOrder: idx,
+          })),
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['work-order', id] });
-      queryClient.invalidateQueries({ queryKey: ['work-order-flow', id] });
+      setEditingCurve(false);
     },
   });
 
@@ -120,28 +114,27 @@ export function WorkOrderDetailPage() {
     return <div className="p-8 text-center text-[var(--color-text-secondary)]">Cargando...</div>;
   }
 
-  const graphNodes: Node[] = (wo.blueprintSnapshotJson?.nodes ?? flow?.nodes ?? []).map((n) => ({
-    id: n.id,
-    position: n.position ?? { x: 0, y: 0 },
-    data: { label: n.data?.label ?? n.id },
-    style: n.id === wo.currentStateKey
-      ? { border: '2px solid var(--color-primary)', background: 'var(--color-accent-blue-pale)' }
-      : undefined,
-  }));
+  const startEditCurve = () => {
+    setCurveRows(toCurveRows(wo.sizeCurve ?? []));
+    setEditingCurve(true);
+  };
 
-  const graphEdges: Edge[] = (wo.blueprintSnapshotJson?.edges ?? flow?.edges ?? []).map((e) => ({
-    id: e.id,
-    source: e.source,
-    target: e.target,
-    label: e.data?.label ?? '',
-    markerEnd: { type: MarkerType.ArrowClosed },
-    animated: flow?.availableTransitions?.some((t) => t.edgeId === e.id),
-  }));
+  const photos = wo.garmentReference
+    ? [
+        { label: 'Frontal', src: wo.garmentReference.garmentImageUrl1 },
+        { label: 'Trasera', src: wo.garmentReference.garmentImageUrl2 },
+        { label: 'Lateral', src: wo.garmentReference.garmentImageUrl3 },
+      ]
+    : [];
 
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <button onClick={() => navigate('/work-orders')} className="p-1 rounded hover:bg-[var(--color-accent-blue-pale)]">
+        <button
+          type="button"
+          onClick={() => navigate('/work-orders')}
+          className="p-1 rounded hover:bg-[var(--color-accent-blue-pale)]"
+        >
           <ArrowLeft size={20} />
         </button>
         <div>
@@ -151,53 +144,32 @@ export function WorkOrderDetailPage() {
             {wo.workSite ? ` · ${wo.workSite.name}` : ''}
           </p>
         </div>
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex items-center gap-3">
+          <UrgencyBadge urgency={wo.urgency} />
           {wo.productionType && <StatusBadge status={wo.productionType} />}
           <StatusBadge status={wo.status} />
         </div>
       </div>
 
-      {graphNodes.length > 0 && (
-        <Card className="p-0 overflow-hidden h-[320px]">
-          <ReactFlow
-            nodes={graphNodes}
-            edges={graphEdges}
-            fitView
-            nodesDraggable={false}
-            nodesConnectable={false}
-            elementsSelectable={false}
-            panOnDrag
-            zoomOnScroll
-          >
-            <Background />
-            <Controls showInteractive={false} />
-          </ReactFlow>
-        </Card>
-      )}
-
-      {flow && flow.availableTransitions.length > 0 && (
-        <Card>
-          <h2 className="font-semibold text-sm mb-3">
-            Estado actual: <span className="text-[var(--color-primary)]">{flow.currentStateLabel}</span>
-          </h2>
-          <div className="flex flex-wrap gap-2">
-            {flow.availableTransitions.map((t) => (
-              <Button
-                key={t.edgeId}
-                size="sm"
-                onClick={() => transitionMutation.mutate(t.edgeId)}
-                disabled={transitionMutation.isPending}
-              >
-                <Play size={14} className="mr-1" />
-                {t.label} → {t.targetLabel}
-              </Button>
+      {wo.garmentReference && photos.some((p) => p.src) && (
+        <Card className="p-4">
+          <h2 className="font-semibold text-sm mb-3">Fotos de la referencia</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {photos.map((photo) => (
+              <div key={photo.label} className="text-center">
+                <p className="text-xs text-[var(--color-text-secondary)] mb-2">{photo.label}</p>
+                {photo.src ? (
+                  <img
+                    src={photo.src}
+                    alt={photo.label}
+                    className="max-h-52 w-full object-contain mx-auto rounded border"
+                  />
+                ) : (
+                  <p className="text-sm text-gray-300 py-12 border border-dashed rounded">Sin imagen</p>
+                )}
+              </div>
             ))}
           </div>
-          {transitionMutation.isError && (
-            <p className="text-sm text-red-600 mt-2">
-              {String((transitionMutation.error as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Error')}
-            </p>
-          )}
         </Card>
       )}
 
@@ -206,50 +178,21 @@ export function WorkOrderDetailPage() {
           <h2 className="font-semibold text-sm mb-3">Referencia de prenda</h2>
           {wo.garmentReference ? (
             <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-              {wo.garmentReference.code && (
+              <dt className="text-[var(--color-text-secondary)]">ID</dt>
+              <dd className="font-mono">{wo.garmentReference.code ?? '—'}</dd>
+              <dt className="text-[var(--color-text-secondary)]">Tipo</dt>
+              <dd>{referenceTypeLabel(wo.garmentReference.referenceType)}</dd>
+              <dt className="text-[var(--color-text-secondary)]">Serie</dt>
+              <dd>{wo.garmentReference.serie ?? '—'}</dd>
+              <dt className="text-[var(--color-text-secondary)]">Marca</dt>
+              <dd>{wo.garmentReference.brand?.name ?? '—'}</dd>
+              <dt className="text-[var(--color-text-secondary)]">Silueta</dt>
+              <dd>{wo.garmentReference.silhouette?.name ?? '—'}</dd>
+              {wo.garmentReference.referenceCost != null && (
                 <>
-                  <dt className="text-[var(--color-text-secondary)]">ID referencia</dt>
-                  <dd className="font-mono">{wo.garmentReference.code}</dd>
+                  <dt className="text-[var(--color-text-secondary)]">Costo ref. catálogo</dt>
+                  <dd className="font-mono">${formatMoney(wo.garmentReference.referenceCost)}</dd>
                 </>
-              )}
-              {wo.garmentReference.referenceType && (
-                <>
-                  <dt className="text-[var(--color-text-secondary)]">Tipo</dt>
-                  <dd>{referenceTypeLabel(wo.garmentReference.referenceType)}</dd>
-                </>
-              )}
-              {wo.garmentReference.serie && (
-                <>
-                  <dt className="text-[var(--color-text-secondary)]">Serie</dt>
-                  <dd>{wo.garmentReference.serie}</dd>
-                </>
-              )}
-              {(wo.garmentReference.brand?.name || wo.garmentReference.brandId) && (
-                <>
-                  <dt className="text-[var(--color-text-secondary)]">Marca</dt>
-                  <dd>{wo.garmentReference.brand?.name ?? wo.garmentReference.brandId}</dd>
-                </>
-              )}
-              {wo.garmentReference.title && (
-                <>
-                  <dt className="text-[var(--color-text-secondary)]">Título</dt>
-                  <dd>{wo.garmentReference.title}</dd>
-                </>
-              )}
-              {wo.garmentReference.silhouetteId && (
-                <>
-                  <dt className="text-[var(--color-text-secondary)]">Silueta</dt>
-                  <dd>{wo.garmentReference.silhouetteId}</dd>
-                </>
-              )}
-              {wo.garmentReference.garmentImageUrl1 && (
-                <div className="col-span-2 mt-1">
-                  <img
-                    src={wo.garmentReference.garmentImageUrl1}
-                    alt="Prenda"
-                    className="h-20 rounded object-cover"
-                  />
-                </div>
               )}
             </dl>
           ) : (
@@ -258,40 +201,79 @@ export function WorkOrderDetailPage() {
         </Card>
 
         <Card>
-          <h2 className="font-semibold text-sm mb-3">Curva de tallas</h2>
-          {wo.sizeCurve && wo.sizeCurve.length > 0 ? (
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-semibold text-sm">Curva de tallas</h2>
+            {!editingCurve ? (
+              <Button size="sm" variant="secondary" onClick={startEditCurve}>
+                <Pencil size={14} className="mr-1" />
+                Editar
+              </Button>
+            ) : (
+              <Button size="sm" onClick={() => saveCurveMutation.mutate()} disabled={saveCurveMutation.isPending}>
+                <Save size={14} className="mr-1" />
+                Guardar
+              </Button>
+            )}
+          </div>
+          {editingCurve ? (
+            <SizeCurveEditor value={curveRows} onChange={setCurveRows} />
+          ) : (
             <>
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-left text-[var(--color-text-secondary)]">
-                    <th className="pb-1">Talla</th>
-                    <th className="pb-1 text-right">Programadas</th>
-                    <th className="pb-1 text-right">Cortadas</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {wo.sizeCurve.map((item) => (
-                    <tr key={item.id}>
-                      <td>{item.sizeId}</td>
-                      <td className="text-right">{item.programmedQty}</td>
-                      <td className="text-right">{item.cutQty}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {wo.garmentReference && (
+              <SizeCurveEditor value={toCurveRows(wo.sizeCurve ?? [])} onChange={() => {}} readOnly />
+              {wo.garmentReference && wo.sizeCurve && wo.sizeCurve.length > 0 && (
                 <div className="mt-2 pt-2 border-t text-xs text-[var(--color-text-secondary)] flex gap-4">
-                  <span>Tallas: <strong>{wo.garmentReference.totalSizesCount ?? wo.sizeCurve.length}</strong></span>
-                  <span>Programadas: <strong>{wo.garmentReference.programmedGarmentsQty ?? 0}</strong></span>
-                  <span>Cortadas: <strong>{wo.garmentReference.cutGarmentsQty ?? 0}</strong></span>
+                  <span>
+                    Tallas: <strong>{wo.garmentReference.totalSizesCount ?? wo.sizeCurve.length}</strong>
+                  </span>
+                  <span>
+                    Programadas: <strong>{wo.garmentReference.programmedGarmentsQty ?? 0}</strong>
+                  </span>
+                  <span>
+                    Cortadas: <strong>{wo.garmentReference.cutGarmentsQty ?? 0}</strong>
+                  </span>
                 </div>
               )}
             </>
-          ) : (
-            <p className="text-xs text-[var(--color-text-secondary)]">Sin curva de tallas</p>
           )}
         </Card>
       </div>
+
+      <Card>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="font-semibold text-sm">Insumos de la orden</h2>
+          <p className="text-sm font-semibold">
+            Costo OT: <span className="font-mono text-[var(--color-primary)]">${formatMoney(wo.supplyCostTotal)}</span>
+          </p>
+        </div>
+        {wo.supplyItems && wo.supplyItems.length > 0 ? (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-[var(--color-text-secondary)] border-b">
+                <th className="py-2">Insumo</th>
+                <th className="py-2 text-right">Cant/prenda</th>
+                <th className="py-2 text-right">Valor unit.</th>
+                <th className="py-2 text-right">Requerido</th>
+                <th className="py-2 text-right">Subtotal</th>
+              </tr>
+            </thead>
+            <tbody>
+              {wo.supplyItems.map((row) => (
+                <tr key={row.id} className="border-b last:border-0">
+                  <td className="py-2">{row.supply.name}</td>
+                  <td className="py-2 text-right font-mono">{Number(row.quantityPerGarment)}</td>
+                  <td className="py-2 text-right font-mono">${formatMoney(row.unitCost)}</td>
+                  <td className="py-2 text-right font-mono">{Number(row.requiredQty)}</td>
+                  <td className="py-2 text-right font-mono">
+                    ${formatMoney(lineCost(row.requiredQty, row.unitCost))}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <p className="text-xs text-[var(--color-text-secondary)]">Sin insumos asignados</p>
+        )}
+      </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>

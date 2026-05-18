@@ -21,4 +21,10 @@ export class UpsertSupplyRequirementDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @ApiPropertyOptional({ example: 15000, description: 'Valor unitario del insumo' })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  unitCost?: number;
 }
