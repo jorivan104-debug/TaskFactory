@@ -28,9 +28,18 @@ export class InventoryService {
   constructor(private readonly prisma: PrismaService) {}
 
   /** Listado de insumos con stock (ítems de inventario). */
-  findSupplyItems(filters: { warehouseId?: string; isActive?: boolean }) {
+  findSupplyItems(filters: {
+    warehouseId?: string;
+    isActive?: boolean;
+    supplyTypeId?: string;
+    disponible?: boolean;
+    faltante?: boolean;
+  }) {
     const where: Prisma.SupplyWhereInput = {};
     if (filters.isActive !== undefined) where.isActive = filters.isActive;
+    if (filters.supplyTypeId) where.supplyTypeId = filters.supplyTypeId;
+    if (filters.disponible) where.stockOnHand = { gt: 0 };
+    if (filters.faltante) where.stockShortage = { gt: 0 };
 
     return this.prisma.supply.findMany({
       where,

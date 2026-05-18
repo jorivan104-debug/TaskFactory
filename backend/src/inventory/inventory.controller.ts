@@ -28,13 +28,22 @@ export class InventoryController {
   @ApiOperation({ summary: 'List inventory items (supplies with stock)' })
   @ApiQuery({ name: 'warehouseId', required: false })
   @ApiQuery({ name: 'isActive', required: false })
+  @ApiQuery({ name: 'supplyTypeId', required: false })
+  @ApiQuery({ name: 'disponible', required: false })
+  @ApiQuery({ name: 'faltante', required: false })
   findItems(
     @Query('warehouseId') warehouseId?: string,
     @Query('isActive') isActive?: string,
+    @Query('supplyTypeId') supplyTypeId?: string,
+    @Query('disponible') disponible?: string,
+    @Query('faltante') faltante?: string,
   ) {
     return this.service.findSupplyItems({
       warehouseId,
       isActive: isActive === undefined ? undefined : isActive === 'true',
+      supplyTypeId,
+      disponible: disponible === undefined ? undefined : disponible === 'true',
+      faltante: faltante === undefined ? undefined : faltante === 'true',
     });
   }
 

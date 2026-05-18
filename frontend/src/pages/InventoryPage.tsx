@@ -51,11 +51,25 @@ export function InventoryPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [formError, setFormError] = useState<string | null>(null);
+  const [filterEstado, setFilterEstado] = useState<'all' | 'active' | 'inactive'>('active');
+  const [filterTipo, setFilterTipo] = useState('');
+  const [filterDisponible, setFilterDisponible] = useState(false);
+  const [filterFaltante, setFilterFaltante] = useState(false);
+
+  const inventoryParams = () => {
+    const params: Record<string, string | boolean> = {};
+    if (filterEstado === 'active') params.isActive = true;
+    if (filterEstado === 'inactive') params.isActive = false;
+    if (filterTipo) params.supplyTypeId = filterTipo;
+    if (filterDisponible) params.disponible = true;
+    if (filterFaltante) params.faltante = true;
+    return params;
+  };
 
   const { data: rows = [] } = useQuery({
-    queryKey: ['inventory-items'],
+    queryKey: ['inventory-items', filterEstado, filterTipo, filterDisponible, filterFaltante],
     queryFn: async () => {
-      const { data } = await api.get('/inventory/items', { params: { isActive: true } });
+      const { data } = await api.get('/inventory/items', { params: inventoryParams() });
       return data as SupplyItem[];
     },
   });
@@ -178,6 +192,65 @@ export function InventoryPage() {
             Nuevo insumo
           </Button>
         </div>
+
+        <Card className="p-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
+            <div>
+              <label className="block text-sm font-medium mb-1">Estado</label>
+              <select
+                className="w-full border rounded px-3 py-2 text-sm"
+                value={filterEstado}
+                onChange={(e) => setFilterEstado(e.target.value as 'all' | 'active' | 'inactive')}
+              >
+                <option value="all">Todos</option>
+                <option value="active">Activo</option>
+                <option value="inactive">Inactivo</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Tipo</label>
+              <select
+                className="w-full border rounded px-3 py-2 text-sm"
+                value={filterTipo}
+                onChange={(e) => setFilterTipo(e.target.value)}
+              >
+                <option value="">Todos</option>
+                {supplyTypes.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <label className="flex items-center gap-2 text-sm pt-6">
+              <input
+                type="checkbox"
+                checked={filterDisponible}
+                onChange={(e) => setFilterDisponible(e.target.checked)}
+              />
+              Disponible
+            </label>
+            <label className="flex items-center gap-2 text-sm pt-6">
+              <input
+                type="checkbox"
+                checked={filterFaltante}
+                onChange={(e) => setFilterFaltante(e.target.checked)}
+              />
+              Faltante
+            </label>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setFilterEstado('active');
+                setFilterTipo('');
+                setFilterDisponible(false);
+                setFilterFaltante(false);
+              }}
+            >
+              Limpiar
+            </Button>
+          </div>
+        </Card>
 
         <Card className="p-0 overflow-hidden">
           <DataTable

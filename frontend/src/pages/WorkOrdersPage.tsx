@@ -54,12 +54,21 @@ const columns = [
   },
 ];
 
+interface CatalogRef {
+  id: string;
+  code: string;
+  title?: string;
+  imageUrl?: string | null;
+  garmentImageUrl1?: string | null;
+}
+
 interface FormState {
   workSiteId: string;
   workOrderTypeId: string;
   code: string;
   title: string;
   productionType: string;
+  catalogGarmentReferenceId: string;
 }
 
 const emptyForm: FormState = {
@@ -68,6 +77,7 @@ const emptyForm: FormState = {
   code: '',
   title: '',
   productionType: '',
+  catalogGarmentReferenceId: '',
 };
 
 export function WorkOrdersPage() {
@@ -101,6 +111,16 @@ export function WorkOrdersPage() {
     },
   });
 
+  const { data: catalogRefs = [] } = useQuery({
+    queryKey: ['garment-references', 'catalog'],
+    queryFn: async () => {
+      const { data } = await api.get('/garment-references', { params: { isActive: true } });
+      return data as CatalogRef[];
+    },
+  });
+
+  const selectedCatalogRef = catalogRefs.find((r) => r.id === form.catalogGarmentReferenceId);
+
   const createMutation = useMutation({
     mutationFn: async () => {
       const payload: Record<string, unknown> = {
@@ -110,6 +130,9 @@ export function WorkOrdersPage() {
       if (form.workOrderTypeId) payload.workOrderTypeId = form.workOrderTypeId;
       if (form.title) payload.title = form.title;
       if (form.productionType) payload.productionType = form.productionType;
+      if (form.catalogGarmentReferenceId) {
+        payload.catalogGarmentReferenceId = form.catalogGarmentReferenceId;
+      }
       const { data } = await api.post('/work-orders', payload);
       return data;
     },
@@ -209,6 +232,35 @@ export function WorkOrdersPage() {
                   <option value="development">Desarrollo</option>
                   <option value="batch_production">Producción en lotes</option>
                 </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Referencia de catálogo</label>
+                <select
+                  className="w-full border rounded px-3 py-2 text-sm"
+                  value={form.catalogGarmentReferenceId}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, catalogGarmentReferenceId: e.target.value }))
+                  }
+                >
+                  <option value="">Sin referencia</option>
+                  {catalogRefs.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.code} {r.title ? `— ${r.title}` : ''}
+                    </option>
+                  ))}
+                </select>
+                {selectedCatalogRef && (
+                  <div className="mt-2 flex items-center gap-3 p-2 rounded border bg-gray-50">
+                    {(selectedCatalogRef.imageUrl ?? selectedCatalogRef.garmentImageUrl1) ? (
+                      <img
+                        src={selectedCatalogRef.imageUrl ?? selectedCatalogRef.garmentImageUrl1 ?? ''}
+                        alt=""
+                        className="w-12 h-12 object-cover rounded border"
+                      />
+                    ) : null}
+                    <span className="text-sm font-mono">{selectedCatalogRef.code}</span>
+                  </div>
+                )}
               </div>
             </div>
 

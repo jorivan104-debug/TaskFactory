@@ -6,6 +6,7 @@ import { DataTable } from '../components/ui/DataTable';
 import { ActiveBadge } from '../components/settings/CatalogCrudPage';
 import { Plus, Pencil, X, Ban, Package, Trash2 } from 'lucide-react';
 import api from '../lib/api';
+import { ImageField } from '../components/garment-references/ImageField';
 
 interface Brand {
   id: string;
@@ -20,7 +21,15 @@ interface GarmentRefRow {
   serie: string;
   title?: string;
   isActive: boolean;
+  imageUrl?: string | null;
+  garmentImageUrl1?: string | null;
+  garmentImageUrl2?: string | null;
+  garmentImageUrl3?: string | null;
   brand?: { id: string; name: string; consecutivo: number };
+}
+
+function thumbSrc(row: GarmentRefRow) {
+  return row.imageUrl ?? row.garmentImageUrl1 ?? null;
 }
 
 const REFERENCE_TYPE_OPTIONS = [
@@ -35,9 +44,19 @@ interface FormState {
   brandId: string;
   referenceType: string;
   title: string;
+  garmentImageUrl1: string;
+  garmentImageUrl2: string;
+  garmentImageUrl3: string;
 }
 
-const emptyForm: FormState = { brandId: '', referenceType: '', title: '' };
+const emptyForm: FormState = {
+  brandId: '',
+  referenceType: '',
+  title: '',
+  garmentImageUrl1: '',
+  garmentImageUrl2: '',
+  garmentImageUrl3: '',
+};
 
 interface SupplyOption {
   id: string;
@@ -100,17 +119,25 @@ export function GarmentReferencesPage() {
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['garment-references'] });
 
+  const imagePayload = () => ({
+    garmentImageUrl1: form.garmentImageUrl1 || undefined,
+    garmentImageUrl2: form.garmentImageUrl2 || undefined,
+    garmentImageUrl3: form.garmentImageUrl3 || undefined,
+  });
+
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (editingId) {
         await api.patch(`/garment-references/${editingId}`, {
           title: form.title || undefined,
+          ...imagePayload(),
         });
       } else {
         await api.post('/garment-references', {
           brandId: form.brandId,
           referenceType: form.referenceType,
           title: form.title || undefined,
+          ...imagePayload(),
         });
       }
     },
@@ -151,6 +178,9 @@ export function GarmentReferencesPage() {
       brandId: row.brand?.id ?? '',
       referenceType: row.referenceType,
       title: row.title ?? '',
+      garmentImageUrl1: row.garmentImageUrl1 ?? row.imageUrl ?? '',
+      garmentImageUrl2: row.garmentImageUrl2 ?? '',
+      garmentImageUrl3: row.garmentImageUrl3 ?? '',
     });
     setPreview({ code: row.code, serie: row.serie });
     setFormError(null);
@@ -213,12 +243,38 @@ export function GarmentReferencesPage() {
     setBomRefCode(row.code);
   };
 
+  const [detailRef, setDetailRef] = useState<GarmentRefRow | null>(null);
+
+  const { data: detailBom = [] } = useQuery({
+    queryKey: ['bom', detailRef?.id, 'detail'],
+    queryFn: async () => {
+      if (!detailRef) return [];
+      const { data } = await api.get(`/garment-references/${detailRef.id}/supply-requirements`);
+      return data as BomRow[];
+    },
+    enabled: !!detailRef,
+  });
+
   const handleDeactivate = (row: GarmentRefRow) => {
     if (!window.confirm(`¿Desactivar la referencia ${row.code}?`)) return;
     deactivateMutation.mutate(row.id);
   };
 
   const tableColumns = [
+    {
+      key: 'thumb',
+      header: '',
+      render: (row: GarmentRefRow) => {
+        const src = thumbSrc(row);
+        return src ? (
+          <img src={src} alt="" className="w-10 h-10 object-cover rounded border" />
+        ) : (
+          <span className="w-10 h-10 inline-flex items-center justify-center rounded border border-dashed text-xs text-gray-300">
+            —
+          </span>
+        );
+      },
+    },
     { key: 'code', header: 'ID' },
     {
       key: 'referenceType',
@@ -293,7 +349,11 @@ export function GarmentReferencesPage() {
       </div>
 
       <Card className="p-0 overflow-hidden">
-        <DataTable columns={tableColumns} data={rows} />
+        <DataTable
+          columns={tableColumns}
+          data={rows}
+          onRowClick={(row) => setDetailRef(row)}
+        />
       </Card>
 
       {modalOpen && (
@@ -369,6 +429,23 @@ export function GarmentReferencesPage() {
                   onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
                 />
               </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+                <ImageField
+                  label="Frontal"
+                  value={form.garmentImageUrl1}
+                  onChange={(v) => setForm((f) => ({ ...f, garmentImageUrl1: v }))}
+                />
+                <ImageField
+                  label="Trasera"
+                  value={form.garmentImageUrl2}
+                  onChange={(v) => setForm((f) => ({ ...f, garmentImageUrl2: v }))}
+                />
+                <ImageField
+                  label="Lateral"
+                  value={form.garmentImageUrl3}
+                  onChange={(v) => setForm((f) => ({ ...f, garmentImageUrl3: v }))}
+                />
+              </div>
             </div>
 
             <div className="flex justify-end gap-2 mt-6">
@@ -385,6 +462,65 @@ export function GarmentReferencesPage() {
                 {editingId ? 'Guardar' : 'Crear'}
               </Button>
             </div>
+          </Card>
+        </div>
+      )}
+
+      {detailRef && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <Card className="w-full max-w-3xl p-6 relative max-h-[90vh] overflow-y-auto">
+            <button
+              type="button"
+              onClick={() => setDetailRef(null)}
+              className="absolute top-3 right-3 text-[var(--color-text-secondary)]"
+            >
+              <X size={18} />
+            </button>
+            <h2 className="text-lg font-semibold mb-1">{detailRef.title ?? detailRef.code}</h2>
+            <p className="text-sm text-[var(--color-text-secondary)] mb-4 font-mono">{detailRef.code}</p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+              {[
+                { label: 'Frontal', src: detailRef.garmentImageUrl1 ?? detailRef.imageUrl },
+                { label: 'Trasera', src: detailRef.garmentImageUrl2 },
+                { label: 'Lateral', src: detailRef.garmentImageUrl3 },
+              ].map((photo) => (
+                <div key={photo.label} className="text-center">
+                  <p className="text-xs text-[var(--color-text-secondary)] mb-2">{photo.label}</p>
+                  {photo.src ? (
+                    <img src={photo.src} alt={photo.label} className="max-h-48 mx-auto rounded border object-contain" />
+                  ) : (
+                    <p className="text-sm text-gray-300 py-12 border border-dashed rounded">Sin imagen</p>
+                  )}
+                </div>
+              ))}
+            </div>
+            <h3 className="font-semibold mb-2">Insumos</h3>
+            {detailBom.length > 0 ? (
+              <table className="w-full text-sm mb-4">
+                <thead>
+                  <tr className="border-b text-left text-[var(--color-text-secondary)]">
+                    <th className="py-2">Insumo</th>
+                    <th className="py-2">Cant/prenda</th>
+                    <th className="py-2">Unidad</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {detailBom.map((row) => (
+                    <tr key={row.id} className="border-b">
+                      <td className="py-2">{row.supply.name}</td>
+                      <td className="py-2 font-mono">{Number(row.quantityPerGarment)}</td>
+                      <td className="py-2">{row.supply.unitOfMeasure?.code ?? '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <p className="text-sm text-[var(--color-text-secondary)] mb-4">Sin insumos registrados.</p>
+            )}
+            <Button size="sm" variant="secondary" onClick={() => { openBom(detailRef); setDetailRef(null); }}>
+              <Package size={14} className="mr-1 inline" />
+              Gestionar insumos
+            </Button>
           </Card>
         </div>
       )}

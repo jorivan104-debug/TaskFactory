@@ -38,4 +38,19 @@ export class CreateGarmentReferenceDto {
   @IsOptional()
   @IsUUID()
   pantoneColorId?: string;
+
+  @ApiPropertyOptional({ description: 'Foto frontal (miniatura en listado)' })
+  @IsOptional()
+  @IsString()
+  garmentImageUrl1?: string;
+
+  @ApiPropertyOptional({ description: 'Foto trasera' })
+  @IsOptional()
+  @IsString()
+  garmentImageUrl2?: string;
+
+  @ApiPropertyOptional({ description: 'Foto lateral' })
+  @IsOptional()
+  @IsString()
+  garmentImageUrl3?: string;
 }

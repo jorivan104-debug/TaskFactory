@@ -69,7 +69,10 @@ export class GarmentReferencesService {
           referenceSequence,
           code,
           title: dto.title,
-          imageUrl: dto.imageUrl,
+          imageUrl: dto.imageUrl ?? dto.garmentImageUrl1,
+          garmentImageUrl1: dto.garmentImageUrl1,
+          garmentImageUrl2: dto.garmentImageUrl2,
+          garmentImageUrl3: dto.garmentImageUrl3,
           silhouetteId: dto.silhouetteId,
           fabricSupplyId: dto.fabricSupplyId,
           pantoneColorId: dto.pantoneColorId,
@@ -91,9 +94,14 @@ export class GarmentReferencesService {
         'Referencias vinculadas a una OT se editan desde la orden de trabajo',
       );
     }
+    const data = { ...dto };
+    if (data.garmentImageUrl1 !== undefined && data.imageUrl === undefined) {
+      data.imageUrl = data.garmentImageUrl1;
+    }
+
     return this.prisma.garmentReference.update({
       where: { id },
-      data: dto,
+      data,
       include: {
         brand: { select: { id: true, name: true, consecutivo: true } },
       },
