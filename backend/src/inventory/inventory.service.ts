@@ -72,6 +72,23 @@ export class InventoryService {
     return supply;
   }
 
+  async updateSupplyPrice(supplyId: string, purchaseUnitPrice: number) {
+    await this.findSupplyItem(supplyId);
+    return this.prisma.supply.update({
+      where: { id: supplyId },
+      data: { purchaseUnitPrice: new Prisma.Decimal(purchaseUnitPrice) },
+      include: {
+        supplyType: true,
+        unitOfMeasure: true,
+        defaultSupplier: true,
+        stockLots: {
+          include: { warehouse: { select: { id: true, name: true, code: true } } },
+          orderBy: { updatedAt: 'desc' },
+        },
+      },
+    });
+  }
+
   findMovements(filters: {
     supplyId?: string;
     warehouseId?: string;

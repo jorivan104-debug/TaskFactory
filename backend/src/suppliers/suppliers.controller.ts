@@ -1,9 +1,11 @@
-import { Controller, Get, Post, Patch, Delete, Param, Body, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { Controller, Get, Post, Patch, Delete, Param, Body, Query, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { CurrentUser } from '../auth/current-user.decorator';
 import { SuppliersService } from './suppliers.service';
 import { CreateSupplierDto } from './dto/create-supplier.dto';
 import { UpdateSupplierDto } from './dto/update-supplier.dto';
+import { SUPPLIER_TYPE_LABELS, SUPPLIER_TYPES } from './supplier-types';
 
 @ApiTags('Suppliers')
 @ApiBearerAuth()
@@ -12,10 +14,27 @@ import { UpdateSupplierDto } from './dto/update-supplier.dto';
 export class SuppliersController {
   constructor(private readonly service: SuppliersService) {}
 
+  @Get('types')
+  @ApiOperation({ summary: 'Supplier type catalog' })
+  listTypes() {
+    return SUPPLIER_TYPES.map((value) => ({
+      value,
+      label: SUPPLIER_TYPE_LABELS[value] ?? value,
+    }));
+  }
+
   @Get()
   @ApiOperation({ summary: 'List all suppliers' })
-  findAll() {
-    return this.service.findAll();
+  @ApiQuery({ name: 'supplierType', required: false })
+  @ApiQuery({ name: 'isActive', required: false })
+  findAll(
+    @Query('supplierType') supplierType?: string,
+    @Query('isActive') isActive?: string,
+  ) {
+    return this.service.findAll({
+      supplierType,
+      isActive: isActive === undefined ? undefined : isActive === 'true',
+    });
   }
 
   @Get(':id')
@@ -26,8 +45,8 @@ export class SuppliersController {
 
   @Post()
   @ApiOperation({ summary: 'Create supplier' })
-  create(@Body() dto: CreateSupplierDto) {
-    return this.service.create(dto);
+  create(@Body() dto: CreateSupplierDto, @CurrentUser() user: { id: string }) {
+    return this.service.create(dto, user.id);
   }
 
   @Patch(':id')

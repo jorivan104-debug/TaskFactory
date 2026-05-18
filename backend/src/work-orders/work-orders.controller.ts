@@ -9,6 +9,7 @@ import { UpsertGarmentReferenceDto } from './dto/upsert-garment-reference.dto';
 import { UpsertSizeCurveDto } from './dto/upsert-size-curve.dto';
 import { AddPantoneColorDto } from './dto/add-pantone-color.dto';
 import { CreateWorkOrderLogDto } from './dto/create-work-order-log.dto';
+import { UpsertClosingActivityDto } from './dto/upsert-closing-activity.dto';
 
 @ApiTags('Work Orders')
 @ApiBearerAuth()
@@ -121,6 +122,36 @@ export class WorkOrdersController {
     @Param('supplyId') supplyId: string,
   ) {
     return this.service.removeSupplyItem(id, supplyId);
+  }
+
+  // ── Closing activities ──
+
+  @Get(':id/closing-activities')
+  @ApiOperation({ summary: 'List closing activities' })
+  listClosingActivities(@Param('id') id: string) {
+    return this.service.listClosingActivities(id);
+  }
+
+  @Post(':id/closing-activities')
+  @ApiOperation({ summary: 'Add closing activity' })
+  addClosingActivity(@Param('id') id: string, @Body() dto: UpsertClosingActivityDto) {
+    return this.service.addClosingActivity(id, dto);
+  }
+
+  @Patch(':id/closing-activities/:activityId')
+  @ApiOperation({ summary: 'Update closing activity' })
+  updateClosingActivity(
+    @Param('id') id: string,
+    @Param('activityId') activityId: string,
+    @Body() dto: UpsertClosingActivityDto,
+  ) {
+    return this.service.updateClosingActivity(id, activityId, dto);
+  }
+
+  @Delete(':id/closing-activities/:activityId')
+  @ApiOperation({ summary: 'Remove closing activity' })
+  removeClosingActivity(@Param('id') id: string, @Param('activityId') activityId: string) {
+    return this.service.removeClosingActivity(id, activityId);
   }
 
   // ── Pantone Colors ──

@@ -1,46 +1,68 @@
-import { IsEmail, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsEmail, IsIn, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { SUPPLIER_TYPES } from '../supplier-types';
 
 export class CreateSupplierDto {
-  @ApiProperty({ example: 'Textiles Corp' })
+  @ApiProperty({ example: 'Patronista García' })
   @IsString()
   @IsNotEmpty()
   @MaxLength(255)
-  name: string;
+  legalName: string;
 
-  @ApiPropertyOptional({ example: 'John Smith' })
+  @ApiPropertyOptional({ example: 'García Patrones' })
   @IsOptional()
   @IsString()
   @MaxLength(255)
-  contactName?: string;
+  tradeName?: string;
 
-  @ApiPropertyOptional({ example: '+57 311 1234567' })
+  @ApiProperty({ enum: SUPPLIER_TYPES, example: 'patronista' })
+  @IsString()
+  @IsIn([...SUPPLIER_TYPES])
+  supplierType: string;
+
+  @ApiPropertyOptional({ example: 'María García' })
   @IsOptional()
   @IsString()
-  @MaxLength(50)
+  @MaxLength(255)
+  contactPerson?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
   phone?: string;
 
-  @ApiPropertyOptional({ example: 'contact@textiles.com' })
+  @ApiPropertyOptional()
   @IsOptional()
   @IsEmail()
   @MaxLength(255)
   email?: string;
 
-  @ApiPropertyOptional({ example: '123 Main St' })
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  @MaxLength(500)
   address?: string;
 
-  @ApiPropertyOptional({ example: 'Bogota' })
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  @MaxLength(255)
+  @MaxLength(128)
   city?: string;
 
-  @ApiPropertyOptional({ example: '900123456-7' })
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  @MaxLength(50)
+  @MaxLength(64)
+  country?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
   taxId?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  notes?: string;
 }

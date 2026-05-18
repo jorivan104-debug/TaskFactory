@@ -7,6 +7,7 @@ import { DataTable } from '../components/ui/DataTable';
 import { ActiveBadge } from '../components/settings/CatalogCrudPage';
 import { Plus, X } from 'lucide-react';
 import api from '../lib/api';
+import { formatMoney } from '../lib/money';
 
 interface SupplyItem {
   id: string;
@@ -15,6 +16,7 @@ interface SupplyItem {
   stockOnHand: string | number;
   stockRequested: string | number;
   stockShortage: string | number;
+  purchaseUnitPrice?: string | number | null;
   isActive: boolean;
   supplyType?: { name: string };
   unitOfMeasure?: { code: string; name: string };
@@ -136,6 +138,13 @@ export function InventoryPage() {
       key: 'supplyType',
       header: 'Tipo',
       render: (row: SupplyItem) => row.supplyType?.name ?? '—',
+    },
+    {
+      key: 'purchaseUnitPrice',
+      header: 'Costo unit.',
+      render: (row: SupplyItem) => (
+        <span className="font-mono">${formatMoney(row.purchaseUnitPrice)}</span>
+      ),
     },
     {
       key: 'stockOnHand',

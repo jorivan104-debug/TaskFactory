@@ -7,6 +7,7 @@ import { ActiveBadge } from '../components/settings/CatalogCrudPage';
 import { Plus, Pencil, X, Ban, Package, Trash2 } from 'lucide-react';
 import api from '../lib/api';
 import { ImageField } from '../components/garment-references/ImageField';
+import { ClickableImage } from '../components/ui/ClickableImage';
 import { formatMoney, lineCost } from '../lib/money';
 
 interface Brand {
@@ -531,7 +532,12 @@ export function GarmentReferencesPage() {
                 <div key={photo.label} className="text-center">
                   <p className="text-xs text-[var(--color-text-secondary)] mb-2">{photo.label}</p>
                   {photo.src ? (
-                    <img src={photo.src} alt={photo.label} className="max-h-48 mx-auto rounded border object-contain" />
+                    <ClickableImage
+                      src={photo.src}
+                      alt={photo.label}
+                      label={photo.label}
+                      className="max-h-48 mx-auto rounded border object-contain"
+                    />
                   ) : (
                     <p className="text-sm text-gray-300 py-12 border border-dashed rounded">Sin imagen</p>
                   )}

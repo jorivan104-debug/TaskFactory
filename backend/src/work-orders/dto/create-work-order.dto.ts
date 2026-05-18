@@ -148,6 +148,20 @@ export class CreateWorkOrderDto {
   @IsString()
   designInstructions?: string;
 
+  @ApiPropertyOptional({ description: 'Design document annexes (JSON array)' })
+  @IsOptional()
+  designAttachmentsJson?: unknown;
+
+  @ApiPropertyOptional({ example: 'uuid' })
+  @IsOptional()
+  @IsUUID()
+  cuttingSupplierId?: string;
+
+  @ApiPropertyOptional({ example: 'uuid' })
+  @IsOptional()
+  @IsUUID()
+  confectionSupplierId?: string;
+
   @ApiPropertyOptional({ description: 'Catalog garment reference to copy BOM from' })
   @IsOptional()
   @IsUUID()

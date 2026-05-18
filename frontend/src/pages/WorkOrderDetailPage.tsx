@@ -9,6 +9,8 @@ import { SizeCurveEditor, type SizeCurveRow } from '../components/work-orders/Si
 import { UrgencyBadge } from '../components/work-orders/UrgencyBadge';
 import { formatMoney, lineCost } from '../lib/money';
 import api from '../lib/api';
+import { ClickableImage } from '../components/ui/ClickableImage';
+import { WorkOrderProductionSections } from '../components/work-orders/WorkOrderProductionSections';
 
 interface GarmentRef {
   id: string;
@@ -52,6 +54,15 @@ interface WODetail {
   urgency?: string;
   supplyCostTotal?: string | number;
   productionType?: string;
+  designInstructions?: string | null;
+  designAttachmentsJson?: unknown;
+  patternSupplierId?: string | null;
+  patternSupplier?: { id: string; legalName: string; tradeName?: string | null; supplierType: string } | null;
+  cuttingSupplierId?: string | null;
+  cuttingSupplier?: { id: string; legalName: string; tradeName?: string | null; supplierType: string } | null;
+  confectionSupplierId?: string | null;
+  confectionSupplier?: { id: string; legalName: string; tradeName?: string | null; supplierType: string } | null;
+  closingActivities?: { id: string; activityName: string; performedBy?: string | null; sortOrder: number }[];
   workOrderType?: { name: string };
   workSite?: { name: string };
   garmentReference?: GarmentRef;
@@ -159,9 +170,10 @@ export function WorkOrderDetailPage() {
               <div key={photo.label} className="text-center">
                 <p className="text-xs text-[var(--color-text-secondary)] mb-2">{photo.label}</p>
                 {photo.src ? (
-                  <img
+                  <ClickableImage
                     src={photo.src}
                     alt={photo.label}
+                    label={photo.label}
                     className="max-h-52 w-full object-contain mx-auto rounded border"
                   />
                 ) : (
@@ -172,6 +184,8 @@ export function WorkOrderDetailPage() {
           </div>
         </Card>
       )}
+
+      <WorkOrderProductionSections wo={wo} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>

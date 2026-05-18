@@ -55,6 +55,16 @@ export class WorkOrdersService {
         taskAssignments: true,
         workOrderType: true,
         workSite: true,
+        patternSupplier: {
+          select: { id: true, legalName: true, tradeName: true, supplierType: true },
+        },
+        cuttingSupplier: {
+          select: { id: true, legalName: true, tradeName: true, supplierType: true },
+        },
+        confectionSupplier: {
+          select: { id: true, legalName: true, tradeName: true, supplierType: true },
+        },
+        closingActivities: { orderBy: { sortOrder: 'asc' } },
         garmentReference: {
           include: {
             brand: { select: { id: true, name: true, consecutivo: true } },
@@ -251,7 +261,55 @@ export class WorkOrdersService {
 
   async update(id: string, dto: UpdateWorkOrderDto) {
     await this.findOne(id);
-    return this.prisma.workOrder.update({ where: { id }, data: dto as any });
+    const data: Record<string, unknown> = { ...dto };
+    if (dto.designInstructions !== undefined) {
+      data.designInstructionsUpdatedAt = new Date();
+    }
+    return this.prisma.workOrder.update({ where: { id }, data: data as any });
+  }
+
+  async listClosingActivities(workOrderId: string) {
+    await this.findOne(workOrderId);
+    return this.prisma.workOrderClosingActivity.findMany({
+      where: { workOrderId },
+      orderBy: { sortOrder: 'asc' },
+    });
+  }
+
+  async addClosingActivity(workOrderId: string, dto: { activityName: string; performedBy?: string; sortOrder?: number }) {
+    await this.findOne(workOrderId);
+    const count = await this.prisma.workOrderClosingActivity.count({ where: { workOrderId } });
+    return this.prisma.workOrderClosingActivity.create({
+      data: {
+        workOrderId,
+        activityName: dto.activityName,
+        performedBy: dto.performedBy,
+        sortOrder: dto.sortOrder ?? count,
+      },
+    });
+  }
+
+  async updateClosingActivity(
+    workOrderId: string,
+    activityId: string,
+    dto: { activityName?: string; performedBy?: string; sortOrder?: number },
+  ) {
+    const row = await this.prisma.workOrderClosingActivity.findFirst({
+      where: { id: activityId, workOrderId },
+    });
+    if (!row) throw new NotFoundException('Actividad de cerrado no encontrada');
+    return this.prisma.workOrderClosingActivity.update({
+      where: { id: activityId },
+      data: dto,
+    });
+  }
+
+  async removeClosingActivity(workOrderId: string, activityId: string) {
+    const row = await this.prisma.workOrderClosingActivity.findFirst({
+      where: { id: activityId, workOrderId },
+    });
+    if (!row) throw new NotFoundException('Actividad de cerrado no encontrada');
+    return this.prisma.workOrderClosingActivity.delete({ where: { id: activityId } });
   }
 
   async close(id: string, userId: string) {

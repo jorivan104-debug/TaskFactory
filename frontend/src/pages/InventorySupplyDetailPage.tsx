@@ -7,6 +7,7 @@ import { Button } from '../components/ui/Button';
 import { DataTable } from '../components/ui/DataTable';
 import { ActiveBadge } from '../components/settings/CatalogCrudPage';
 import api from '../lib/api';
+import { formatMoney } from '../lib/money';
 
 const MOVEMENT_TYPES = [
   { value: 'adjustment', label: 'Ajuste' },
@@ -35,6 +36,7 @@ interface SupplyDetail {
   name: string;
   sku?: string;
   stockOnHand: string | number;
+  purchaseUnitPrice?: string | number | null;
   isActive: boolean;
   supplyType?: { name: string };
   unitOfMeasure?: { id: string; code: string; name: string };
@@ -81,6 +83,8 @@ export function InventorySupplyDetailPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<MovementForm>(emptyMovementForm());
   const [formError, setFormError] = useState<string | null>(null);
+  const [editingPrice, setEditingPrice] = useState(false);
+  const [priceInput, setPriceInput] = useState('');
 
   const { data: supply, isLoading } = useQuery({
     queryKey: ['inventory-item', supplyId],
@@ -113,6 +117,16 @@ export function InventorySupplyDetailPage() {
     queryClient.invalidateQueries({ queryKey: ['inventory-movements', supplyId] });
     queryClient.invalidateQueries({ queryKey: ['inventory-items'] });
   };
+
+  const priceMutation = useMutation({
+    mutationFn: async (purchaseUnitPrice: number) => {
+      await api.patch(`/inventory/items/${supplyId}`, { purchaseUnitPrice });
+    },
+    onSuccess: () => {
+      invalidate();
+      setEditingPrice(false);
+    },
+  });
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -314,6 +328,47 @@ export function InventorySupplyDetailPage() {
                   : undefined
               }
             />
+            <div className="flex justify-between items-start gap-2">
+              <dt className="text-[var(--color-text-secondary)]">Costo unitario</dt>
+              <dd className="text-right">
+                {editingPrice ? (
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      className="w-24 border rounded px-2 py-1 text-sm font-mono"
+                      value={priceInput}
+                      onChange={(e) => setPriceInput(e.target.value)}
+                    />
+                    <Button
+                      size="sm"
+                      onClick={() =>
+                        priceMutation.mutate(parseFloat(priceInput) || 0)
+                      }
+                      disabled={priceMutation.isPending}
+                    >
+                      OK
+                    </Button>
+                    <Button size="sm" variant="secondary" onClick={() => setEditingPrice(false)}>
+                      ×
+                    </Button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    className="font-mono font-medium hover:text-[var(--color-primary)]"
+                    onClick={() => {
+                      setPriceInput(String(supply.purchaseUnitPrice ?? ''));
+                      setEditingPrice(true);
+                    }}
+                    title="Editar costo"
+                  >
+                    ${formatMoney(supply.purchaseUnitPrice)}
+                  </button>
+                )}
+              </dd>
+            </div>
             {supply.sku && (
               <SummaryRow label="SKU" value={supply.sku} />
             )}

@@ -16,6 +16,7 @@ import { InventoryService } from './inventory.service';
 import { CreateMovementDto } from './dto/create-movement.dto';
 import { UpdateMovementDto } from './dto/update-movement.dto';
 import { CreateSupplyWithInventoryDto } from './dto/create-supply-with-inventory.dto';
+import { UpdateSupplyPriceDto } from './dto/update-supply-price.dto';
 
 @ApiTags('Inventory')
 @ApiBearerAuth()
@@ -51,6 +52,15 @@ export class InventoryController {
   @ApiOperation({ summary: 'Get supply inventory detail' })
   findItem(@Param('supplyId') supplyId: string) {
     return this.service.findSupplyItem(supplyId);
+  }
+
+  @Patch('items/:supplyId')
+  @ApiOperation({ summary: 'Update supply purchase unit price' })
+  updateSupplyPrice(
+    @Param('supplyId') supplyId: string,
+    @Body() dto: UpdateSupplyPriceDto,
+  ) {
+    return this.service.updateSupplyPrice(supplyId, dto.purchaseUnitPrice);
   }
 
   @Get('items/:supplyId/movements')

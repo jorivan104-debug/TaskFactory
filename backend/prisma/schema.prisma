@@ -286,6 +286,7 @@ model SupplyType {
 
 model Supplier {
   id              String   @id @default(uuid()) @db.Uuid
+  supplierType    String   @default("otro") @map("supplier_type") @db.VarChar(64)
   legalName       String   @map("legal_name") @db.VarChar(255)
   tradeName       String?  @map("trade_name") @db.VarChar(255)
   taxId           String?  @map("tax_id") @db.VarChar(64)
@@ -307,7 +308,9 @@ model Supplier {
   purchaseOrders SupplyPurchaseOrder[]
   invoices       SupplierInvoice[]
   payments       SupplierPayment[]
-  workOrders     WorkOrder[]           @relation("PatternSupplier")
+  workOrdersPattern    WorkOrder[] @relation("PatternSupplier")
+  workOrdersCutting    WorkOrder[] @relation("CuttingSupplier")
+  workOrdersConfection WorkOrder[] @relation("ConfectionSupplier")
 
   @@map("suppliers")
 }
@@ -615,6 +618,8 @@ model WorkOrder {
   supplyCostTotal             Decimal   @default(0) @map("supply_cost_total") @db.Decimal(18, 4)
   productionType              String?   @map("production_type") @db.VarChar(32)
   patternSupplierId           String?   @map("pattern_supplier_id") @db.Uuid
+  cuttingSupplierId           String?   @map("cutting_supplier_id") @db.Uuid
+  confectionSupplierId        String?   @map("confection_supplier_id") @db.Uuid
   patterningDays              Int?      @map("patterning_days")
   designInstructions          String?   @map("design_instructions")
   designInstructionsUpdatedAt DateTime? @map("design_instructions_updated_at") @db.Timestamptz
@@ -633,9 +638,12 @@ model WorkOrder {
   closedBy         User?                    @relation("WOCloser", fields: [closedByUserId], references: [id])
   workOrderType    WorkOrderType?           @relation(fields: [workOrderTypeId], references: [id])
   workSite         WorkSite                 @relation(fields: [workSiteId], references: [id])
-  patternSupplier  Supplier?                @relation("PatternSupplier", fields: [patternSupplierId], references: [id])
-  garmentReference GarmentReference?
-  sizeCurve        WorkOrderSizeCurveItem[]
+  patternSupplier    Supplier?                    @relation("PatternSupplier", fields: [patternSupplierId], references: [id])
+  cuttingSupplier    Supplier?                    @relation("CuttingSupplier", fields: [cuttingSupplierId], references: [id])
+  confectionSupplier Supplier?                    @relation("ConfectionSupplier", fields: [confectionSupplierId], references: [id])
+  garmentReference   GarmentReference?
+  sizeCurve          WorkOrderSizeCurveItem[]
+  closingActivities  WorkOrderClosingActivity[]
   pantoneColors    WorkOrderPantoneColor[]
   logs             WorkOrderLog[]
   taskAssignments  TaskAssignment[]
@@ -662,6 +670,20 @@ model WorkOrderPantoneColor {
 
   @@unique([workOrderId, pantoneColorId, usageLabel])
   @@map("work_order_pantone_colors")
+}
+
+model WorkOrderClosingActivity {
+  id           String   @id @default(uuid()) @db.Uuid
+  workOrderId  String   @map("work_order_id") @db.Uuid
+  activityName String   @map("activity_name") @db.VarChar(255)
+  performedBy  String?  @map("performed_by") @db.VarChar(255)
+  sortOrder    Int      @default(0) @map("sort_order")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  workOrder WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+
+  @@map("work_order_closing_activities")
 }
 
 model WorkOrderLog {

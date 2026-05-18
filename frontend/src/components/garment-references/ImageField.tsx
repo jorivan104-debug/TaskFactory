@@ -1,4 +1,5 @@
 import { fileToThumbnailDataUrl } from '../../lib/image';
+import { ClickableImage } from '../ui/ClickableImage';
 
 export function ImageField({
   label,
@@ -14,7 +15,12 @@ export function ImageField({
       <label className="block text-sm font-medium mb-1">{label}</label>
       {value ? (
         <div className="space-y-2">
-          <img src={value} alt={label} className="h-24 w-24 object-cover rounded border" />
+          <ClickableImage
+            src={value}
+            alt={label}
+            label={label}
+            className="h-24 w-24 object-cover rounded border"
+          />
           <button
             type="button"
             className="text-xs text-red-600 hover:underline"
