@@ -681,6 +681,90 @@ Cada **orden de trabajo** tiene una **curva de tallas**: un conjunto de líneas,
 
 ---
 
+### 6f. Ficha de piezas por tela (en orden de trabajo)
+
+**Lógico:** Ficha de piezas por tela · **Físico:** `work_order_fabric_piece_sheets`
+
+Una ficha por **cada tela enviada** en una OT. Replica el formato Excel “REF / TELA / PROMEDIO REAL / TALLAS COLOCADAS / LARGO DEL TRAZO …” con tabla de **piezas** (con imagen individual) y tabla de **rollos**. **No** se crea ficha para telas auxiliares como **tela bolsillo**: se identifican vía `work_order_supply_items.fabric_usage = 'pocket'`.
+
+| Columna | Tipo | Obl. | Notas |
+|---------|------|------|--------|
+| `id` | UUID | Sí | PK |
+| `work_order_id` | UUID | Sí | FK → `work_orders` |
+| `work_order_supply_item_id` | UUID | Sí | **UNIQUE**; FK → `work_order_supply_items` (insumo de tela `main`) |
+| `status` | VARCHAR(16) | Sí | `draft` \| `active` \| `closed` |
+| `sheet_date` | DATE | No | FECHA del Excel |
+| `sizes_placed` | INT | No | TALLAS COLOCADAS |
+| `real_average` | NUMERIC(10,4) | No | PROMEDIO REAL |
+| `marker_length` | NUMERIC(10,4) | No | LARGO DEL TRAZO |
+| `labeled_pieces_notes` | TEXT | No | PIEZAS ETIQUETADA (texto libre) |
+| `pocket_fabric_notes` | VARCHAR(255) | No | TELA BOLSILLO (`NO HAY` o descripción) |
+| `has_bias`, `bias_weight` | BOOL / NUMERIC(10,4) | No | SESGO + peso |
+| `has_elastic` | BOOL | No | CAUCHO |
+| `has_zipper`, `zipper_weight` | BOOL / NUMERIC(10,4) | No | CIERRE + peso |
+| `has_luxury_zipper` | BOOL | No | CIERRE DE LUJO |
+| `programmed_qty` | INT | No | CANTIDAD PROGRAM |
+| `meters_to_use` | NUMERIC(12,4) | No | METROS A USAR |
+| `leftover_meters` | NUMERIC(12,4) | No | SOBRA |
+| `total_meters` | NUMERIC(12,4) | Sí | TOTAL MTRS (suma de rollos; recalculado) |
+| `notes` | TEXT | No | |
+| `created_at` / `updated_at` | TIMESTAMPTZ | Sí | |
+| `created_by_user_id` | UUID | Sí | FK → `users` |
+
+**Reglas de negocio:**
+
+- Auto-creación al copiar BOM o agregar manualmente un insumo de tipo `fabric` con `fabric_usage = 'main'`.
+- Heurística inicial: si el nombre del insumo contiene `bolsillo` se marca como `pocket` y no genera ficha (puede corregirse desde la UI).
+- Al cambiar un insumo a `pocket`, se elimina su ficha (cascade); al revertir a `main`, se regenera vacía.
+
+**Relaciones:** `work_orders` (N:1, cascade), `work_order_supply_items` (1:1, cascade), hijos `work_order_fabric_piece_sheet_pieces` y `work_order_fabric_piece_sheet_rolls`.
+
+---
+
+### 6g. Pieza de la ficha
+
+**Lógico:** Pieza de patronaje cargada en la ficha · **Físico:** `work_order_fabric_piece_sheet_pieces`
+
+| Columna | Tipo | Obl. | Notas |
+|---------|------|------|--------|
+| `id` | UUID | Sí | PK |
+| `piece_sheet_id` | UUID | Sí | FK → `work_order_fabric_piece_sheets` (cascade) |
+| `sort_order` | INT | Sí | Orden visual (`0…n`) |
+| `name` | VARCHAR(128) | Sí | Nombre operativo: `PRETINA`, `DELANTERO`, … |
+| `material_slot` | INT | Sí | `1` = tela principal de la ficha; `2` = secundaria del mismo trazo; `0` = N/A |
+| `quantity` | INT | Sí | Default 1 |
+| `is_pair` | BOOL | Sí | Indica si la pieza va en par |
+| `image_url` | TEXT | No | Imagen subida como data URL JPEG (patrón existente en referencias) |
+
+---
+
+### 6h. Rollo de la ficha
+
+**Lógico:** Rollo de tela contabilizado en la ficha · **Físico:** `work_order_fabric_piece_sheet_rolls`
+
+| Columna | Tipo | Obl. | Notas |
+|---------|------|------|--------|
+| `id` | UUID | Sí | PK |
+| `piece_sheet_id` | UUID | Sí | FK → `work_order_fabric_piece_sheets` (cascade) |
+| `roll_number` | VARCHAR(64) | Sí | `# ROLLO` |
+| `meters` | NUMERIC(12,4) | Sí | MTS |
+| `sort_order` | INT | Sí | Orden visual |
+
+`work_order_fabric_piece_sheets.total_meters` se recalcula al guardar la lista (PUT `.../rolls`).
+
+---
+
+### 6i. Marcador de uso en insumos de la OT
+
+Se añadió a `work_order_supply_items` la columna **`fabric_usage`** `VARCHAR(16)` (default `main`):
+
+- `main`: tela que genera ficha de piezas.
+- `pocket`: tela auxiliar (bolsillo, forros menores) que **no** genera ficha y aparece como nota en la ficha principal.
+
+Solo aplica a insumos con `supplies.supply_type.code = 'fabric'`; en el resto de tipos el valor se ignora.
+
+---
+
 ### 7. Unidad de medida
 
 **Lógico:** Unidad de medida · **Físico:** `units_of_measure`
@@ -817,9 +901,14 @@ erDiagram
   work_orders ||--o{ work_order_pantone_colors : assigns
   work_orders ||--o{ task_assignments : tasks
   pantone_colors ||--o{ work_order_pantone_colors : used
+  work_orders ||--o{ work_order_fabric_piece_sheets : per_fabric
+  work_order_supply_items ||--|| work_order_fabric_piece_sheets : "1to1 main fabric"
+  work_order_fabric_piece_sheets ||--o{ work_order_fabric_piece_sheet_pieces : pieces
+  work_order_fabric_piece_sheets ||--o{ work_order_fabric_piece_sheet_rolls : rolls
   users ||--o{ work_orders : creates
   users ||--o{ work_order_types : creates
   users ||--o{ work_order_size_curve_items : creates
+  users ||--o{ work_order_fabric_piece_sheets : creates
 ```
 
 ---
@@ -848,3 +937,4 @@ erDiagram
 | 0.8 | 2026-05-17 | **`work_order_types`**, **`work_order_blueprints`** (flujo por canvas); **`work_orders`**: `work_order_type_id`, `current_state_key`, `blueprint_version`, `blueprint_snapshot_json`; motor de transiciones y UI de configuración/OT |
 | 0.9 | 2026-05-18 | **Simplificación:** eliminar `developments` y `production_orders`; OT como entidad principal con campos de planificación; `garment_references` dual-source (`lexi_catalog` / `work_order`); curva de tallas → `work_order_size_curve_items` |
 | 1.0 | 2026-05-18 | **Catálogo manual:** `brands.consecutivo` (100–999); `garment_references.code`, `reference_type`, `serie`, `reference_sequence`, `is_active`; sin Lexi/webhook; CRUD + preview de ID |
+| 1.1 | 2026-05-19 | **Ficha de piezas por tela** en OT: `work_order_fabric_piece_sheets`, `work_order_fabric_piece_sheet_pieces` (con imagen), `work_order_fabric_piece_sheet_rolls`; `work_order_supply_items.fabric_usage` para distinguir tela principal de tela bolsillo |

@@ -4,9 +4,10 @@ import { WorkOrdersService } from './work-orders.service';
 import { BlueprintEngineService } from './blueprint-engine.service';
 import { WorkOrderTypesModule } from '../work-order-types/work-order-types.module';
 import { GarmentReferencesModule } from '../garment-references/garment-references.module';
+import { FabricPieceSheetsModule } from '../fabric-piece-sheets/fabric-piece-sheets.module';
 
 @Module({
-  imports: [WorkOrderTypesModule, GarmentReferencesModule],
+  imports: [WorkOrderTypesModule, GarmentReferencesModule, FabricPieceSheetsModule],
   controllers: [WorkOrdersController],
   providers: [WorkOrdersService, BlueprintEngineService],
 })

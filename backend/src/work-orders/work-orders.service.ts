@@ -9,6 +9,8 @@ import { AddPantoneColorDto } from './dto/add-pantone-color.dto';
 import { CreateWorkOrderLogDto } from './dto/create-work-order-log.dto';
 import type { BlueprintDefinition } from '../work-order-types/blueprint-validator';
 import { GarmentReferencesService } from '../garment-references/garment-references.service';
+import { FabricPieceSheetsService } from '../fabric-piece-sheets/fabric-piece-sheets.service';
+import { inferFabricUsage } from '../fabric-piece-sheets/fabric-usage.util';
 
 @Injectable()
 export class WorkOrdersService {
@@ -16,6 +18,7 @@ export class WorkOrdersService {
     private readonly prisma: PrismaService,
     private readonly engine: BlueprintEngineService,
     private readonly garmentRefs: GarmentReferencesService,
+    private readonly fabricPieceSheets: FabricPieceSheetsService,
   ) {}
 
   findAll(filters: { status?: string; workSiteId?: string; productionType?: string }) {
@@ -83,10 +86,29 @@ export class WorkOrdersService {
                 name: true,
                 sku: true,
                 purchaseUnitPrice: true,
-                supplyType: { select: { name: true } },
+                supplyType: { select: { code: true, name: true } },
                 unitOfMeasure: { select: { code: true, name: true } },
               },
             },
+          },
+        },
+        fabricPieceSheets: {
+          orderBy: { createdAt: 'asc' },
+          include: {
+            workOrderSupplyItem: {
+              include: {
+                supply: {
+                  select: {
+                    id: true,
+                    name: true,
+                    sku: true,
+                    unitOfMeasure: { select: { code: true, name: true } },
+                  },
+                },
+              },
+            },
+            pieces: { orderBy: { sortOrder: 'asc' } },
+            rolls: { orderBy: { sortOrder: 'asc' } },
           },
         },
       },
@@ -163,6 +185,8 @@ export class WorkOrdersService {
         }
       }
 
+      await this.fabricPieceSheets.ensureSheetsForWorkOrder(wo.id, userId, tx);
+
       if (sizeCurve?.length) {
         await tx.workOrderSizeCurveItem.createMany({
           data: sizeCurve.map((item) => ({
@@ -226,6 +250,13 @@ export class WorkOrdersService {
 
     if (requirements.length === 0) return;
 
+    type SupplyMeta = { id: string; name: string; supplyType: { code: string } };
+    const supplyMeta: SupplyMeta[] = await tx.supply.findMany({
+      where: { id: { in: Array.from(new Set(requirements.map((r: any) => r.supplyId as string))) } },
+      select: { id: true, name: true, supplyType: { select: { code: true } } },
+    });
+    const metaById = new Map<string, SupplyMeta>(supplyMeta.map((s) => [s.id, s]));
+
     await tx.workOrderSupplyItem.createMany({
       data: requirements.map((r: any) => ({
         workOrderId,
@@ -236,6 +267,7 @@ export class WorkOrdersService {
         stagedQty: 0,
         executedQty: 0,
         sourceRequirementId: r.id ?? undefined,
+        fabricUsage: inferFabricUsage(metaById.get(r.supplyId)),
         createdByUserId: userId,
         updatedAt: new Date(),
       })),
@@ -469,6 +501,12 @@ export class WorkOrdersService {
     const multiplier = cutTotal > 0 ? cutTotal : programmedTotal;
     const requiredQty = dto.quantityPerGarment * multiplier;
 
+    const supplyMeta = await this.prisma.supply.findUnique({
+      where: { id: dto.supplyId },
+      select: { id: true, name: true, supplyType: { select: { code: true } } },
+    });
+    const fabricUsage = inferFabricUsage(supplyMeta ?? undefined);
+
     const row = await this.prisma.workOrderSupplyItem.upsert({
       where: { workOrderId_supplyId: { workOrderId, supplyId: dto.supplyId } },
       create: {
@@ -478,6 +516,7 @@ export class WorkOrdersService {
         unitCost: dto.unitCost ?? 0,
         requiredQty,
         notes: dto.notes,
+        fabricUsage,
         createdByUserId: userId,
       },
       update: {
@@ -488,11 +527,12 @@ export class WorkOrdersService {
       },
       include: {
         supply: {
-          select: { id: true, name: true, sku: true, supplyType: { select: { name: true } }, unitOfMeasure: { select: { code: true, name: true } } },
+          select: { id: true, name: true, sku: true, supplyType: { select: { code: true, name: true } }, unitOfMeasure: { select: { code: true, name: true } } },
         },
       },
     });
     await this.recalculateWorkOrderCost(workOrderId);
+    await this.fabricPieceSheets.ensureSheetsForWorkOrder(workOrderId, userId);
     return row;
   }
 

@@ -26,6 +26,7 @@ import { AccountingSyncModule } from './accounting-sync/accounting-sync.module';
 import { ReportsModule } from './reports/reports.module';
 import { AuditModule } from './audit/audit.module';
 import { KittingsModule } from './kittings/kittings.module';
+import { FabricPieceSheetsModule } from './fabric-piece-sheets/fabric-piece-sheets.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -55,6 +56,7 @@ import { KittingsModule } from './kittings/kittings.module';
     ReportsModule,
     AuditModule,
     KittingsModule,
+    FabricPieceSheetsModule,
   ],
 })
 export class AppModule {}

@@ -121,6 +121,7 @@ model User {
   transportedKittings       WorkOrderSupplyKitting[]            @relation("KittingTransporter")
   receivedKittings          WorkOrderSupplyKitting[]            @relation("KittingReceiver")
   createdUnusedItems        WorkOrderSupplyKittingUnusedItem[]  @relation("UnusedItemCreator")
+  createdFabricPieceSheets  WorkOrderFabricPieceSheet[]         @relation("FabricPieceSheetCreator")
 
   @@map("users")
 }
@@ -649,6 +650,7 @@ model WorkOrder {
   taskAssignments  TaskAssignment[]
   supplyItems      WorkOrderSupplyItem[]
   kittings         WorkOrderSupplyKitting[]
+  fabricPieceSheets WorkOrderFabricPieceSheet[]
 
   @@map("work_orders")
 }
@@ -738,6 +740,7 @@ model WorkOrderSupplyItem {
   stagedQty           Decimal  @default(0) @map("staged_qty") @db.Decimal(18, 4)
   executedQty         Decimal  @default(0) @map("executed_qty") @db.Decimal(18, 4)
   sourceRequirementId String?  @map("source_requirement_id") @db.Uuid
+  fabricUsage         String   @default("main") @map("fabric_usage") @db.VarChar(16)
   notes               String?
   createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz
   updatedAt           DateTime @updatedAt @map("updated_at") @db.Timestamptz
@@ -749,9 +752,81 @@ model WorkOrderSupplyItem {
   sourceRequirement GarmentReferenceSupplyRequirement? @relation("SourceRequirement", fields: [sourceRequirementId], references: [id], onDelete: SetNull)
   kittingItems      WorkOrderSupplyKittingItem[]
   unusedItems       WorkOrderSupplyKittingUnusedItem[]
+  fabricPieceSheet  WorkOrderFabricPieceSheet?
 
   @@unique([workOrderId, supplyId])
   @@map("work_order_supply_items")
+}
+
+// ─── FABRIC PIECE SHEETS ──────────────────────────────────
+
+model WorkOrderFabricPieceSheet {
+  id                    String   @id @default(uuid()) @db.Uuid
+  workOrderId           String   @map("work_order_id") @db.Uuid
+  workOrderSupplyItemId String   @unique @map("work_order_supply_item_id") @db.Uuid
+  status                String   @default("draft") @db.VarChar(16)
+  sheetDate             DateTime? @map("sheet_date") @db.Date
+  sizesPlaced           Int?     @map("sizes_placed")
+  realAverage           Decimal? @map("real_average") @db.Decimal(10, 4)
+  markerLength          Decimal? @map("marker_length") @db.Decimal(10, 4)
+  labeledPiecesNotes    String?  @map("labeled_pieces_notes")
+  pocketFabricNotes     String?  @map("pocket_fabric_notes") @db.VarChar(255)
+  hasBias               Boolean  @default(false) @map("has_bias")
+  biasWeight            Decimal? @map("bias_weight") @db.Decimal(10, 4)
+  hasElastic            Boolean  @default(false) @map("has_elastic")
+  hasZipper             Boolean  @default(false) @map("has_zipper")
+  zipperWeight          Decimal? @map("zipper_weight") @db.Decimal(10, 4)
+  hasLuxuryZipper       Boolean  @default(false) @map("has_luxury_zipper")
+  programmedQty         Int?     @map("programmed_qty")
+  metersToUse           Decimal? @map("meters_to_use") @db.Decimal(12, 4)
+  leftoverMeters        Decimal? @map("leftover_meters") @db.Decimal(12, 4)
+  totalMeters           Decimal  @default(0) @map("total_meters") @db.Decimal(12, 4)
+  notes                 String?
+  createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt             DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  createdByUserId       String   @map("created_by_user_id") @db.Uuid
+
+  createdBy           User                              @relation("FabricPieceSheetCreator", fields: [createdByUserId], references: [id])
+  workOrder           WorkOrder                         @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  workOrderSupplyItem WorkOrderSupplyItem               @relation(fields: [workOrderSupplyItemId], references: [id], onDelete: Cascade)
+  pieces              WorkOrderFabricPieceSheetPiece[]
+  rolls               WorkOrderFabricPieceSheetRoll[]
+
+  @@index([workOrderId])
+  @@map("work_order_fabric_piece_sheets")
+}
+
+model WorkOrderFabricPieceSheetPiece {
+  id            String   @id @default(uuid()) @db.Uuid
+  pieceSheetId  String   @map("piece_sheet_id") @db.Uuid
+  sortOrder     Int      @default(0) @map("sort_order")
+  name          String   @db.VarChar(128)
+  materialSlot  Int      @default(1) @map("material_slot")
+  quantity      Int      @default(1)
+  isPair        Boolean  @default(false) @map("is_pair")
+  imageUrl      String?  @map("image_url")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  pieceSheet WorkOrderFabricPieceSheet @relation(fields: [pieceSheetId], references: [id], onDelete: Cascade)
+
+  @@index([pieceSheetId, sortOrder])
+  @@map("work_order_fabric_piece_sheet_pieces")
+}
+
+model WorkOrderFabricPieceSheetRoll {
+  id           String   @id @default(uuid()) @db.Uuid
+  pieceSheetId String   @map("piece_sheet_id") @db.Uuid
+  rollNumber   String   @map("roll_number") @db.VarChar(64)
+  meters       Decimal  @db.Decimal(12, 4)
+  sortOrder    Int      @default(0) @map("sort_order")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  pieceSheet WorkOrderFabricPieceSheet @relation(fields: [pieceSheetId], references: [id], onDelete: Cascade)
+
+  @@index([pieceSheetId, sortOrder])
+  @@map("work_order_fabric_piece_sheet_rolls")
 }
 
 model WorkOrderSupplyKitting {

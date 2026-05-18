@@ -11,6 +11,10 @@ import { formatMoney, lineCost } from '../lib/money';
 import api from '../lib/api';
 import { ClickableImage } from '../components/ui/ClickableImage';
 import { WorkOrderProductionSections } from '../components/work-orders/WorkOrderProductionSections';
+import {
+  WorkOrderFabricPieceSheets,
+  type FabricPieceSheet,
+} from '../components/work-orders/WorkOrderFabricPieceSheets';
 
 interface GarmentRef {
   id: string;
@@ -43,7 +47,14 @@ interface SupplyItemRow {
   quantityPerGarment: string | number;
   unitCost: string | number;
   requiredQty: string | number;
-  supply: { id: string; name: string; sku?: string; unitOfMeasure?: { code: string } };
+  fabricUsage: string;
+  supply: {
+    id: string;
+    name: string;
+    sku?: string;
+    supplyType?: { code?: string; name?: string };
+    unitOfMeasure?: { code: string; name?: string };
+  };
 }
 
 interface WODetail {
@@ -68,6 +79,7 @@ interface WODetail {
   garmentReference?: GarmentRef;
   sizeCurve?: SizeCurveItem[];
   supplyItems?: SupplyItemRow[];
+  fabricPieceSheets?: FabricPieceSheet[];
   logs: { id: string; entryType: string; summary?: string; performedAt: string }[];
   taskAssignments: { id: string; description?: string; status: string }[];
 }
@@ -251,6 +263,25 @@ export function WorkOrderDetailPage() {
           )}
         </Card>
       </div>
+
+      <WorkOrderFabricPieceSheets
+        workOrderId={wo.id}
+        sheets={wo.fabricPieceSheets ?? []}
+        fabricSupplyItems={(wo.supplyItems ?? [])
+          .filter((s) => s.supply.supplyType?.code === 'fabric')
+          .map((s) => ({
+            id: s.id,
+            fabricUsage: s.fabricUsage,
+            supply: {
+              id: s.supply.id,
+              name: s.supply.name,
+              unitOfMeasure: s.supply.unitOfMeasure
+                ? { code: s.supply.unitOfMeasure.code, name: s.supply.unitOfMeasure.name }
+                : undefined,
+              supplyType: s.supply.supplyType,
+            },
+          }))}
+      />
 
       <Card>
         <div className="flex items-center justify-between mb-3">
