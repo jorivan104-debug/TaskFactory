@@ -1,6 +1,7 @@
 import { IsEmail, IsIn, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { SUPPLIER_TYPES } from '../supplier-types';
+import { BANK_ACCOUNT_TYPES, BANK_ENTITIES } from '../bank-constants';
 
 export class CreateSupplierDto {
   @ApiProperty({ example: 'Patronista García' })
@@ -65,4 +66,28 @@ export class CreateSupplierDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @ApiPropertyOptional({ enum: [...BANK_ENTITIES] })
+  @IsOptional()
+  @IsString()
+  @IsIn([...BANK_ENTITIES])
+  bankEntity?: string;
+
+  @ApiPropertyOptional({ example: '1234567890' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  bankAccountNumber?: string;
+
+  @ApiPropertyOptional({ enum: [...BANK_ACCOUNT_TYPES] })
+  @IsOptional()
+  @IsString()
+  @IsIn([...BANK_ACCOUNT_TYPES])
+  bankAccountType?: string;
+
+  @ApiPropertyOptional({ example: 'Juan Pérez' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  bankAccountHolder?: string;
 }

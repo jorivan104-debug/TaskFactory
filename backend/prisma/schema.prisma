@@ -298,6 +298,10 @@ model Supplier {
   email           String?  @db.VarChar(255)
   website         String?  @db.VarChar(255)
   contactPerson   String?  @map("contact_person") @db.VarChar(255)
+  bankEntity          String?  @map("bank_entity") @db.VarChar(64)
+  bankAccountNumber   String?  @map("bank_account_number") @db.VarChar(64)
+  bankAccountType     String?  @map("bank_account_type") @db.VarChar(32)
+  bankAccountHolder   String?  @map("bank_account_holder") @db.VarChar(255)
   notes           String?
   isActive        Boolean  @default(true) @map("is_active")
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz

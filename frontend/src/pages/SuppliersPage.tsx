@@ -11,6 +11,11 @@ import {
   supplierDisplayName,
   supplierTypeLabel,
 } from '../lib/supplier-types';
+import {
+  BANK_ACCOUNT_TYPE_OPTIONS,
+  BANK_ENTITY_OPTIONS,
+  bankEntityLabel,
+} from '../lib/bank-constants';
 
 interface SupplierRow {
   id: string;
@@ -22,6 +27,11 @@ interface SupplierRow {
   phone?: string | null;
   email?: string | null;
   contactPerson?: string | null;
+  bankEntity?: string | null;
+  bankAccountNumber?: string | null;
+  bankAccountType?: string | null;
+  bankAccountHolder?: string | null;
+  notes?: string | null;
   isActive: boolean;
 }
 
@@ -35,6 +45,10 @@ interface FormState {
   email: string;
   contactPerson: string;
   notes: string;
+  bankEntity: string;
+  bankAccountNumber: string;
+  bankAccountType: string;
+  bankAccountHolder: string;
 }
 
 const emptyForm: FormState = {
@@ -47,6 +61,10 @@ const emptyForm: FormState = {
   email: '',
   contactPerson: '',
   notes: '',
+  bankEntity: '',
+  bankAccountNumber: '',
+  bankAccountType: '',
+  bankAccountHolder: '',
 };
 
 export function SuppliersPage() {
@@ -78,6 +96,10 @@ export function SuppliersPage() {
         email: form.email || undefined,
         contactPerson: form.contactPerson || undefined,
         notes: form.notes || undefined,
+        bankEntity: form.bankEntity || undefined,
+        bankAccountNumber: form.bankAccountNumber || undefined,
+        bankAccountType: form.bankAccountType || undefined,
+        bankAccountHolder: form.bankAccountHolder || undefined,
       };
       if (editingId) {
         await api.patch(`/suppliers/${editingId}`, payload);
@@ -120,7 +142,11 @@ export function SuppliersPage() {
       phone: row.phone ?? '',
       email: row.email ?? '',
       contactPerson: row.contactPerson ?? '',
-      notes: '',
+      notes: row.notes ?? '',
+      bankEntity: row.bankEntity ?? '',
+      bankAccountNumber: row.bankAccountNumber ?? '',
+      bankAccountType: row.bankAccountType ?? '',
+      bankAccountHolder: row.bankAccountHolder ?? '',
     });
     setFormError(null);
     setModalOpen(true);
@@ -145,6 +171,19 @@ export function SuppliersPage() {
     },
     { key: 'taxId', header: 'NIT', render: (row: SupplierRow) => row.taxId ?? '—' },
     { key: 'city', header: 'Ciudad', render: (row: SupplierRow) => row.city ?? '—' },
+    {
+      key: 'bank',
+      header: 'Medio de pago',
+      render: (row: SupplierRow) =>
+        row.bankEntity ? (
+          <span className="text-xs">
+            {bankEntityLabel(row.bankEntity)}
+            {row.bankAccountNumber ? ` · ${row.bankAccountNumber}` : ''}
+          </span>
+        ) : (
+          '—'
+        ),
+    },
     {
       key: 'isActive',
       header: 'Estado',
@@ -270,7 +309,58 @@ export function SuppliersPage() {
                   onChange={(e) => setForm((f) => ({ ...f, contactPerson: e.target.value }))}
                 />
               </div>
+                            <p className="text-sm font-semibold text-[var(--color-text-secondary)] pt-2 border-t">
+                Medio de pago
+              </p>
+              <div>
+                <label className="block text-sm font-medium mb-1">Entidad bancaria</label>
+                <select
+                  className="w-full border rounded px-3 py-2 text-sm"
+                  value={form.bankEntity}
+                  onChange={(e) => setForm((f) => ({ ...f, bankEntity: e.target.value }))}
+                >
+                  <option value="">— Seleccionar —</option>
+                  {BANK_ENTITY_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
               <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Número de cuenta</label>
+                  <input
+                    className="w-full border rounded px-3 py-2 text-sm"
+                    value={form.bankAccountNumber}
+                    onChange={(e) => setForm((f) => ({ ...f, bankAccountNumber: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Tipo de cuenta</label>
+                  <select
+                    className="w-full border rounded px-3 py-2 text-sm"
+                    value={form.bankAccountType}
+                    onChange={(e) => setForm((f) => ({ ...f, bankAccountType: e.target.value }))}
+                  >
+                    <option value="">—</option>
+                    {BANK_ACCOUNT_TYPE_OPTIONS.map((o) => (
+                      <option key={o.value} value={o.value}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Titular de la cuenta</label>
+                <input
+                  className="w-full border rounded px-3 py-2 text-sm"
+                  value={form.bankAccountHolder}
+                  onChange={(e) => setForm((f) => ({ ...f, bankAccountHolder: e.target.value }))}
+                />
+              </div>
+<div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium mb-1">Teléfono</label>
                   <input

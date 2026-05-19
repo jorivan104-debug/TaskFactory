@@ -38,6 +38,10 @@ export class SuppliersService {
         country: dto.country,
         taxId: dto.taxId,
         notes: dto.notes,
+        bankEntity: dto.bankEntity,
+        bankAccountNumber: dto.bankAccountNumber,
+        bankAccountType: dto.bankAccountType,
+        bankAccountHolder: dto.bankAccountHolder,
         createdByUserId: userId,
       },
     });

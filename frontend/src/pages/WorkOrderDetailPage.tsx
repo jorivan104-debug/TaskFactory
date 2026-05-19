@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Pencil, Save } from 'lucide-react';
+import { ArrowLeft, Pencil, Plus, Save, Trash2, X } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { StatusBadge } from '../components/ui/StatusBadge';
@@ -15,6 +15,18 @@ import {
   WorkOrderFabricPieceSheets,
   type FabricPieceSheet,
 } from '../components/work-orders/WorkOrderFabricPieceSheets';
+import { WorkOrderBlueprintFlow } from '../components/work-orders/WorkOrderBlueprintFlow';
+
+interface SupplyOption {
+  id: string;
+  name: string;
+  sku?: string;
+}
+
+interface BlueprintSnapshot {
+  nodes: { id: string; position: { x: number; y: number }; data?: { label?: string } }[];
+  edges: { id: string; source: string; target: string; data?: { label?: string } }[];
+}
 
 interface GarmentRef {
   id: string;
@@ -62,6 +74,8 @@ interface WODetail {
   code: string;
   title?: string;
   status: string;
+  currentStateKey?: string | null;
+  blueprintSnapshotJson?: BlueprintSnapshot | null;
   urgency?: string;
   supplyCostTotal?: string | number;
   productionType?: string;
@@ -104,6 +118,8 @@ export function WorkOrderDetailPage() {
   const queryClient = useQueryClient();
   const [editingCurve, setEditingCurve] = useState(false);
   const [curveRows, setCurveRows] = useState<SizeCurveRow[]>([]);
+  const [supplyModalOpen, setSupplyModalOpen] = useState(false);
+  const [supplyForm, setSupplyForm] = useState({ supplyId: '', quantityPerGarment: '', unitCost: '' });
 
   const { data: wo, isLoading } = useQuery({
     queryKey: ['work-order', id],
@@ -112,6 +128,34 @@ export function WorkOrderDetailPage() {
       return data as WODetail;
     },
     enabled: !!id,
+  });
+
+  const { data: allSupplies = [] } = useQuery({
+    queryKey: ['all-supplies'],
+    queryFn: async () => {
+      const { data } = await api.get('/inventory/items', { params: { isActive: true } });
+      return data as SupplyOption[];
+    },
+  });
+
+  const addSupplyMutation = useMutation({
+    mutationFn: async () => {
+      await api.post(`/work-orders/${id}/supply-items`, {
+        supplyId: supplyForm.supplyId,
+        quantityPerGarment: parseFloat(supplyForm.quantityPerGarment),
+        unitCost: parseFloat(supplyForm.unitCost) || 0,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['work-order', id] });
+      setSupplyModalOpen(false);
+      setSupplyForm({ supplyId: '', quantityPerGarment: '', unitCost: '' });
+    },
+  });
+
+  const removeSupplyMutation = useMutation({
+    mutationFn: (supplyId: string) => api.delete(`/work-orders/${id}/supply-items/${supplyId}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['work-order', id] }),
   });
 
   const saveCurveMutation = useMutation({
@@ -174,30 +218,11 @@ export function WorkOrderDetailPage() {
         </div>
       </div>
 
-      {wo.garmentReference && photos.some((p) => p.src) && (
-        <Card className="p-4">
-          <h2 className="font-semibold text-sm mb-3">Fotos de la referencia</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {photos.map((photo) => (
-              <div key={photo.label} className="text-center">
-                <p className="text-xs text-[var(--color-text-secondary)] mb-2">{photo.label}</p>
-                {photo.src ? (
-                  <ClickableImage
-                    src={photo.src}
-                    alt={photo.label}
-                    label={photo.label}
-                    className="max-h-52 w-full object-contain mx-auto rounded border"
-                  />
-                ) : (
-                  <p className="text-sm text-gray-300 py-12 border border-dashed rounded">Sin imagen</p>
-                )}
-              </div>
-            ))}
-          </div>
-        </Card>
-      )}
-
-      <WorkOrderProductionSections wo={wo} />
+      <WorkOrderBlueprintFlow
+        workOrderId={wo.id}
+        currentStateKey={wo.currentStateKey}
+        blueprintSnapshotJson={wo.blueprintSnapshotJson}
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
@@ -264,6 +289,31 @@ export function WorkOrderDetailPage() {
         </Card>
       </div>
 
+      {wo.garmentReference && photos.some((p) => p.src) && (
+        <Card className="p-4">
+          <h2 className="font-semibold text-sm mb-3">Fotos de la referencia</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {photos.map((photo) => (
+              <div key={photo.label} className="text-center">
+                <p className="text-xs text-[var(--color-text-secondary)] mb-2">{photo.label}</p>
+                {photo.src ? (
+                  <ClickableImage
+                    src={photo.src}
+                    alt={photo.label}
+                    label={photo.label}
+                    className="max-h-52 w-full object-contain mx-auto rounded border"
+                  />
+                ) : (
+                  <p className="text-sm text-gray-300 py-12 border border-dashed rounded">Sin imagen</p>
+                )}
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      <WorkOrderProductionSections wo={wo} />
+
       <WorkOrderFabricPieceSheets
         workOrderId={wo.id}
         sheets={wo.fabricPieceSheets ?? []}
@@ -284,11 +334,18 @@ export function WorkOrderDetailPage() {
       />
 
       <Card>
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
           <h2 className="font-semibold text-sm">Insumos de la orden</h2>
-          <p className="text-sm font-semibold">
-            Costo OT: <span className="font-mono text-[var(--color-primary)]">${formatMoney(wo.supplyCostTotal)}</span>
-          </p>
+          <div className="flex items-center gap-3">
+            <p className="text-sm font-semibold">
+              Costo OT:{' '}
+              <span className="font-mono text-[var(--color-primary)]">${formatMoney(wo.supplyCostTotal)}</span>
+            </p>
+            <Button size="sm" onClick={() => setSupplyModalOpen(true)}>
+              <Plus size={14} className="mr-1" />
+              Añadir insumo
+            </Button>
+          </div>
         </div>
         {wo.supplyItems && wo.supplyItems.length > 0 ? (
           <table className="w-full text-sm">
@@ -299,6 +356,7 @@ export function WorkOrderDetailPage() {
                 <th className="py-2 text-right">Valor unit.</th>
                 <th className="py-2 text-right">Requerido</th>
                 <th className="py-2 text-right">Subtotal</th>
+                <th className="py-2 w-10" />
               </tr>
             </thead>
             <tbody>
@@ -311,6 +369,20 @@ export function WorkOrderDetailPage() {
                   <td className="py-2 text-right font-mono">
                     ${formatMoney(lineCost(row.requiredQty, row.unitCost))}
                   </td>
+                  <td className="py-2 text-right">
+                    <button
+                      type="button"
+                      className="p-1 rounded hover:bg-red-50 text-red-600"
+                      title="Quitar insumo"
+                      onClick={() => {
+                        if (window.confirm(`¿Quitar ${row.supply.name} de la orden?`)) {
+                          removeSupplyMutation.mutate(row.supplyId);
+                        }
+                      }}
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -319,6 +391,80 @@ export function WorkOrderDetailPage() {
           <p className="text-xs text-[var(--color-text-secondary)]">Sin insumos asignados</p>
         )}
       </Card>
+
+      {supplyModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <Card className="w-full max-w-md p-6 relative">
+            <button
+              type="button"
+              onClick={() => setSupplyModalOpen(false)}
+              className="absolute top-3 right-3 text-[var(--color-text-secondary)]"
+            >
+              <X size={18} />
+            </button>
+            <h2 className="text-lg font-semibold mb-4">Añadir insumo</h2>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium mb-1">Insumo *</label>
+                <select
+                  className="w-full border rounded px-3 py-2 text-sm"
+                  value={supplyForm.supplyId}
+                  onChange={(e) => setSupplyForm((f) => ({ ...f, supplyId: e.target.value }))}
+                >
+                  <option value="">— Seleccionar —</option>
+                  {allSupplies
+                    .filter((s) => !wo.supplyItems?.some((i) => i.supplyId === s.id))
+                    .map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                        {s.sku ? ` (${s.sku})` : ''}
+                      </option>
+                    ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Cantidad por prenda *</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="any"
+                  className="w-full border rounded px-3 py-2 text-sm"
+                  value={supplyForm.quantityPerGarment}
+                  onChange={(e) =>
+                    setSupplyForm((f) => ({ ...f, quantityPerGarment: e.target.value }))
+                  }
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Valor unitario</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="any"
+                  className="w-full border rounded px-3 py-2 text-sm"
+                  value={supplyForm.unitCost}
+                  onChange={(e) => setSupplyForm((f) => ({ ...f, unitCost: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 mt-6">
+              <Button variant="secondary" onClick={() => setSupplyModalOpen(false)}>
+                Cancelar
+              </Button>
+              <Button
+                onClick={() => addSupplyMutation.mutate()}
+                disabled={
+                  addSupplyMutation.isPending ||
+                  !supplyForm.supplyId ||
+                  !supplyForm.quantityPerGarment
+                }
+              >
+                Guardar
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
