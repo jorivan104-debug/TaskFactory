@@ -16,7 +16,7 @@ import api from '../../lib/api';
 interface BlueprintNode {
   id: string;
   position: { x: number; y: number };
-  data: { label?: string; isFinal?: boolean };
+  data?: { label?: string; isFinal?: boolean };
 }
 
 interface BlueprintEdge {
@@ -135,7 +135,7 @@ export function WorkOrderBlueprintFlow({
       </Card>
 
       {graphNodes.length > 0 && (
-        <Card className="p-0 overflow-hidden" style={{ height: 280 }}>
+        <Card className="p-0 overflow-hidden h-[280px]">
           <ReactFlow
             nodes={graphNodes}
             edges={graphEdges}
