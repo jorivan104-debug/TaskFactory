@@ -3,6 +3,7 @@ import {
   IsIn,
   IsInt,
   IsNotEmpty,
+  IsNumber,
   IsOptional,
   IsString,
   MaxLength,
@@ -44,4 +45,26 @@ export class UpsertPieceDto {
   @IsInt()
   @Min(0)
   sortOrder?: number;
+
+  @ApiPropertyOptional({ description: 'Instrucciones de corte de la pieza' })
+  @IsOptional()
+  @IsString()
+  cutInstructions?: string;
+
+  @ApiPropertyOptional({ description: 'Instrucciones de agrupación de la pieza' })
+  @IsOptional()
+  @IsString()
+  groupInstructions?: string;
+
+  @ApiPropertyOptional({ example: 100, description: 'Cantidad de prendas que rinde la pieza' })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  garmentsYield?: number;
+
+  @ApiPropertyOptional({ example: 1.25, description: 'Gasto de tela por pieza' })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  fabricUsage?: number;
 }

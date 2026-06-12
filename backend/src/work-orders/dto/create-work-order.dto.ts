@@ -13,6 +13,7 @@ import {
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { REFERENCE_TYPES } from '../../garment-references/garment-reference-code.util';
+import { DesignAttachmentDto } from './design-attachment.dto';
 
 export class CreateGarmentReferencePayload {
   @ApiProperty({ example: 'uuid' })
@@ -148,9 +149,15 @@ export class CreateWorkOrderDto {
   @IsString()
   designInstructions?: string;
 
-  @ApiPropertyOptional({ description: 'Design document annexes (JSON array)' })
+  @ApiPropertyOptional({
+    description: 'Documentos anexos del diseño (cada uno con nombre y fecha de subida)',
+    type: [DesignAttachmentDto],
+  })
   @IsOptional()
-  designAttachmentsJson?: unknown;
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => DesignAttachmentDto)
+  designAttachmentsJson?: DesignAttachmentDto[];
 
   @ApiPropertyOptional({ example: 'uuid' })
   @IsOptional()

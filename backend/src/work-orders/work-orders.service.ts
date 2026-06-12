@@ -110,6 +110,16 @@ export class WorkOrdersService {
             },
             pieces: { orderBy: { sortOrder: 'asc' } },
             rolls: { orderBy: { sortOrder: 'asc' } },
+            spikes: { orderBy: { sortOrder: 'asc' } },
+          },
+        },
+        measurementSheet: {
+          include: {
+            columns: {
+              orderBy: { sortOrder: 'asc' },
+              include: { size: { select: { id: true, name: true, sortOrder: true } } },
+            },
+            cells: true,
           },
         },
       },
@@ -147,7 +157,7 @@ export class WorkOrdersService {
           workOrderTypeId,
           createdByUserId: userId,
           ...(designAttachmentsJson !== undefined && {
-            designAttachmentsJson: designAttachmentsJson as Prisma.InputJsonValue,
+            designAttachmentsJson: designAttachmentsJson as unknown as Prisma.InputJsonValue,
           }),
         },
       });

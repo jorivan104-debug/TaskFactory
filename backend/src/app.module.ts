@@ -27,6 +27,7 @@ import { ReportsModule } from './reports/reports.module';
 import { AuditModule } from './audit/audit.module';
 import { KittingsModule } from './kittings/kittings.module';
 import { FabricPieceSheetsModule } from './fabric-piece-sheets/fabric-piece-sheets.module';
+import { MeasurementSheetsModule } from './measurement-sheets/measurement-sheets.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -57,6 +58,7 @@ import { FabricPieceSheetsModule } from './fabric-piece-sheets/fabric-piece-shee
     AuditModule,
     KittingsModule,
     FabricPieceSheetsModule,
+    MeasurementSheetsModule,
   ],
 })
 export class AppModule {}

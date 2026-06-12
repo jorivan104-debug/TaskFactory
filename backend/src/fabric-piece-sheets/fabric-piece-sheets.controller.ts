@@ -17,6 +17,7 @@ import { CreateFabricPieceSheetDto } from './dto/create-fabric-piece-sheet.dto';
 import { UpdateFabricPieceSheetDto } from './dto/update-fabric-piece-sheet.dto';
 import { UpsertPieceDto } from './dto/upsert-piece.dto';
 import { ReplaceRollsDto } from './dto/replace-rolls.dto';
+import { ReplaceSpikesDto } from './dto/replace-spikes.dto';
 import { SetFabricUsageDto } from './dto/set-fabric-usage.dto';
 import { UploadPieceImageDto } from './dto/upload-piece-image.dto';
 
@@ -113,6 +114,20 @@ export class FabricPieceSheetsController {
     @Body() dto: ReplaceRollsDto,
   ) {
     return this.service.replaceRolls(workOrderId, sheetId, dto);
+  }
+
+  // ── Espigas (parte del diseño del trazo) ──
+
+  @Put(':sheetId/spikes')
+  @ApiOperation({
+    summary: 'Reemplazar la tabla de espigas del diseño del trazo de esta ficha',
+  })
+  replaceSpikes(
+    @Param('workOrderId') workOrderId: string,
+    @Param('sheetId') sheetId: string,
+    @Body() dto: ReplaceSpikesDto,
+  ) {
+    return this.service.replaceSpikes(workOrderId, sheetId, dto);
   }
 
   // ── Marcar tela como principal o tela bolsillo (sin ficha propia) ──

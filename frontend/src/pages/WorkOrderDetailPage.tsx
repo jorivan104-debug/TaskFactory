@@ -11,10 +11,8 @@ import { formatMoney, lineCost } from '../lib/money';
 import api from '../lib/api';
 import { ClickableImage } from '../components/ui/ClickableImage';
 import { WorkOrderProductionSections } from '../components/work-orders/WorkOrderProductionSections';
-import {
-  WorkOrderFabricPieceSheets,
-  type FabricPieceSheet,
-} from '../components/work-orders/WorkOrderFabricPieceSheets';
+import { type FabricPieceSheet } from '../components/work-orders/WorkOrderFabricPieceSheets';
+import { type MeasurementSheet } from '../components/work-orders/WorkOrderMeasurementSheet';
 import { WorkOrderBlueprintFlow } from '../components/work-orders/WorkOrderBlueprintFlow';
 
 interface SupplyOption {
@@ -94,6 +92,7 @@ interface WODetail {
   sizeCurve?: SizeCurveItem[];
   supplyItems?: SupplyItemRow[];
   fabricPieceSheets?: FabricPieceSheet[];
+  measurementSheet?: MeasurementSheet | null;
   logs: { id: string; entryType: string; summary?: string; performedAt: string }[];
   taskAssignments: { id: string; description?: string; status: string }[];
 }
@@ -313,25 +312,6 @@ export function WorkOrderDetailPage() {
       )}
 
       <WorkOrderProductionSections wo={wo} />
-
-      <WorkOrderFabricPieceSheets
-        workOrderId={wo.id}
-        sheets={wo.fabricPieceSheets ?? []}
-        fabricSupplyItems={(wo.supplyItems ?? [])
-          .filter((s) => s.supply.supplyType?.code === 'fabric')
-          .map((s) => ({
-            id: s.id,
-            fabricUsage: s.fabricUsage,
-            supply: {
-              id: s.supply.id,
-              name: s.supply.name,
-              unitOfMeasure: s.supply.unitOfMeasure
-                ? { code: s.supply.unitOfMeasure.code, name: s.supply.unitOfMeasure.name }
-                : undefined,
-              supplyType: s.supply.supplyType,
-            },
-          }))}
-      />
 
       <Card>
         <div className="flex items-center justify-between mb-3 flex-wrap gap-2">

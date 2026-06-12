@@ -127,4 +127,54 @@ export async function applyBaselineSeed(prisma: PrismaDb, adminUserId: string) {
       create: { name: sizes[i], sortOrder: i + 1, createdByUserId: adminUserId },
     });
   }
+
+  // Puntos de medida (filas de la tabla de medidas)
+  const measurementPoints: Array<{
+    category: string;
+    name: string;
+    description: string;
+    isOptional?: boolean;
+  }> = [
+    { category: 'General', name: 'Estatura', description: 'Altura total de la persona.' },
+    { category: 'Superior', name: 'Contorno de busto/pecho', description: 'Circunferencia en la parte más prominente del busto o pecho.' },
+    { category: 'Superior', name: 'Contorno bajo busto', description: 'Importante para prendas ajustadas femeninas.', isOptional: true },
+    { category: 'Superior', name: 'Ancho de espalda', description: 'Distancia entre hombros por la espalda.' },
+    { category: 'Superior', name: 'Largo de talle delantero', description: 'Desde hombro hasta cintura por el frente.' },
+    { category: 'Superior', name: 'Largo de talle posterior', description: 'Desde la base del cuello hasta cintura por la espalda.' },
+    { category: 'Superior', name: 'Ancho de hombros', description: 'Distancia de hombro a hombro.' },
+    { category: 'Superior', name: 'Contorno de brazo', description: 'Parte más ancha del brazo.' },
+    { category: 'Superior', name: 'Largo de manga', description: 'Desde el hombro hasta la muñeca.' },
+    { category: 'Superior', name: 'Contorno de muñeca', description: 'Para definir puños.' },
+    { category: 'Centro del cuerpo', name: 'Contorno de cintura', description: 'Circunferencia de la cintura natural.' },
+    { category: 'Centro del cuerpo', name: 'Contorno de cadera', description: 'Parte más prominente de la cadera.' },
+    { category: 'Centro del cuerpo', name: 'Tiro delantero', description: 'Desde cintura delantera hasta la unión de las piernas.' },
+    { category: 'Centro del cuerpo', name: 'Tiro posterior', description: 'Desde cintura posterior hasta la unión de las piernas.' },
+    { category: 'Centro del cuerpo', name: 'Largo de tiro total', description: 'Fundamental en enterizos y overoles.' },
+    { category: 'Centro del cuerpo', name: 'Largo de talle completo', description: 'Desde hombro pasando por la entrepierna hasta el mismo hombro por la espalda.' },
+    { category: 'Inferior', name: 'Contorno de muslo', description: 'Parte más ancha del muslo.' },
+    { category: 'Inferior', name: 'Contorno de rodilla', description: 'Opcional según diseño.', isOptional: true },
+    { category: 'Inferior', name: 'Contorno de pantorrilla', description: 'Para prendas ajustadas.' },
+    { category: 'Inferior', name: 'Contorno de tobillo', description: 'Apertura de bota.' },
+    { category: 'Inferior', name: 'Largo de pierna exterior', description: 'Desde cintura hasta tobillo o largo deseado.' },
+    { category: 'Inferior', name: 'Largo de entrepierna', description: 'Desde entrepierna hasta tobillo.' },
+  ];
+
+  for (let i = 0; i < measurementPoints.length; i++) {
+    const point = measurementPoints[i];
+    await prisma.garmentMeasurementPoint.upsert({
+      where: { category_name: { category: point.category, name: point.name } },
+      update: {
+        description: point.description,
+        isOptional: point.isOptional ?? false,
+        sortOrder: i + 1,
+      },
+      create: {
+        category: point.category,
+        name: point.name,
+        description: point.description,
+        isOptional: point.isOptional ?? false,
+        sortOrder: i + 1,
+      },
+    });
+  }
 }

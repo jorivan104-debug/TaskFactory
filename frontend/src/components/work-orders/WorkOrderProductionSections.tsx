@@ -5,11 +5,20 @@ import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import api from '../../lib/api';
 import { supplierDisplayName } from '../../lib/supplier-types';
+import {
+  WorkOrderMeasurementSheet,
+  type MeasurementSheet,
+} from './WorkOrderMeasurementSheet';
+import {
+  WorkOrderFabricPieceSheets,
+  type FabricPieceSheet,
+} from './WorkOrderFabricPieceSheets';
 
 export interface DesignAttachment {
   id: string;
   fileName: string;
   dataUrl?: string;
+  uploadedAt?: string;
 }
 
 interface SupplierOption {
@@ -26,6 +35,17 @@ interface ClosingActivity {
   sortOrder: number;
 }
 
+interface SupplyItemSummary {
+  id: string;
+  fabricUsage: string;
+  supply: {
+    id: string;
+    name: string;
+    unitOfMeasure?: { code: string; name?: string };
+    supplyType?: { code?: string; name?: string };
+  };
+}
+
 interface WoProductionData {
   id: string;
   designInstructions?: string | null;
@@ -37,6 +57,10 @@ interface WoProductionData {
   confectionSupplierId?: string | null;
   confectionSupplier?: SupplierOption | null;
   closingActivities?: ClosingActivity[];
+  measurementSheet?: MeasurementSheet | null;
+  fabricPieceSheets?: FabricPieceSheet[];
+  supplyItems?: SupplyItemSummary[];
+  sizeCurve?: { id: string }[];
 }
 
 function readAttachments(json: unknown): DesignAttachment[] {
@@ -139,8 +163,26 @@ export function WorkOrderProductionSections({ wo }: { wo: WoProductionData }) {
     });
     setAttachments((prev) => [
       ...prev,
-      { id: crypto.randomUUID(), fileName: file.name, dataUrl },
+      {
+        id: crypto.randomUUID(),
+        fileName: file.name,
+        dataUrl,
+        uploadedAt: new Date().toISOString(),
+      },
     ]);
+  };
+
+  const formatAttachmentDate = (iso?: string) => {
+    if (!iso) return '—';
+    try {
+      return new Date(iso).toLocaleDateString('es-CO', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      });
+    } catch {
+      return '—';
+    }
   };
 
   const activities = wo.closingActivities ?? [];
@@ -187,10 +229,10 @@ export function WorkOrderProductionSections({ wo }: { wo: WoProductionData }) {
                 {attachments.map((a) => (
                   <li
                     key={a.id}
-                    className="flex items-center justify-between text-sm border rounded px-3 py-2"
+                    className="flex items-center justify-between gap-3 text-sm border rounded px-3 py-2"
                   >
-                    <span className="flex items-center gap-2 truncate">
-                      <Paperclip size={14} />
+                    <span className="flex items-center gap-2 truncate flex-1 min-w-0">
+                      <Paperclip size={14} className="shrink-0" />
                       {a.dataUrl ? (
                         <a
                           href={a.dataUrl}
@@ -201,12 +243,15 @@ export function WorkOrderProductionSections({ wo }: { wo: WoProductionData }) {
                           {a.fileName}
                         </a>
                       ) : (
-                        a.fileName
+                        <span className="truncate">{a.fileName}</span>
                       )}
+                    </span>
+                    <span className="text-xs text-[var(--color-text-secondary)] shrink-0">
+                      Subido: {formatAttachmentDate(a.uploadedAt)}
                     </span>
                     <button
                       type="button"
-                      className="text-red-600 p-1"
+                      className="text-red-600 p-1 shrink-0"
                       onClick={() => setAttachments((prev) => prev.filter((x) => x.id !== a.id))}
                     >
                       <Trash2 size={14} />
@@ -227,6 +272,20 @@ export function WorkOrderProductionSections({ wo }: { wo: WoProductionData }) {
           </div>
         </div>
       </Card>
+
+      <WorkOrderMeasurementSheet
+        workOrderId={wo.id}
+        sheet={wo.measurementSheet ?? null}
+        hasSizeCurve={(wo.sizeCurve ?? []).length > 0}
+      />
+
+      <WorkOrderFabricPieceSheets
+        workOrderId={wo.id}
+        sheets={wo.fabricPieceSheets ?? []}
+        fabricSupplyItems={(wo.supplyItems ?? []).filter(
+          (s) => s.supply.supplyType?.code === 'fabric',
+        )}
+      />
 
       <Card className="p-4">
         <div className="flex items-center justify-between mb-3">

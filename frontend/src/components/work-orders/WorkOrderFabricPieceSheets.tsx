@@ -28,6 +28,10 @@ export interface FabricPieceSheetPiece {
   quantity: number;
   isPair: boolean;
   imageUrl?: string | null;
+  cutInstructions?: string | null;
+  groupInstructions?: string | null;
+  garmentsYield?: number | null;
+  fabricUsage?: string | number | null;
 }
 
 export interface FabricPieceSheetRoll {
@@ -35,6 +39,16 @@ export interface FabricPieceSheetRoll {
   rollNumber: string;
   meters: string | number;
   sortOrder: number;
+}
+
+export interface FabricPieceSheetSpike {
+  id: string;
+  sortOrder: number;
+  name: string;
+  lengthCm?: string | number | null;
+  widthCm?: string | number | null;
+  quantity?: number | null;
+  notes?: string | null;
 }
 
 export interface FabricPieceSheet {
@@ -60,6 +74,7 @@ export interface FabricPieceSheet {
   workOrderSupplyItem: SupplyItem;
   pieces: FabricPieceSheetPiece[];
   rolls: FabricPieceSheetRoll[];
+  spikes?: FabricPieceSheetSpike[];
 }
 
 interface Props {
@@ -99,7 +114,7 @@ export function WorkOrderFabricPieceSheets({ workOrderId, sheets, fabricSupplyIt
   if (sheets.length === 0 && fabricSupplyItems.length === 0) {
     return (
       <Card>
-        <h2 className="font-semibold text-sm mb-2">Fichas de piezas por tela</h2>
+        <h2 className="font-semibold text-sm mb-2">Fichas de trazo y corte</h2>
         <p className="text-xs text-[var(--color-text-secondary)]">
           Esta OT aún no tiene insumos de tipo Tela.
         </p>
@@ -110,7 +125,7 @@ export function WorkOrderFabricPieceSheets({ workOrderId, sheets, fabricSupplyIt
   if (sheets.length === 0) {
     return (
       <Card>
-        <h2 className="font-semibold text-sm mb-2">Fichas de piezas por tela</h2>
+        <h2 className="font-semibold text-sm mb-2">Fichas de trazo y corte</h2>
         <p className="text-xs text-[var(--color-text-secondary)]">
           Todas las telas de esta OT están marcadas como tela bolsillo. Marque al menos una como
           tela principal para generar su ficha.
@@ -142,7 +157,7 @@ export function WorkOrderFabricPieceSheets({ workOrderId, sheets, fabricSupplyIt
   return (
     <Card>
       <div className="flex items-center justify-between mb-3">
-        <h2 className="font-semibold text-sm">Fichas de piezas por tela</h2>
+        <h2 className="font-semibold text-sm">Fichas de trazo y corte</h2>
       </div>
 
       <div className="flex flex-wrap gap-2 mb-4 border-b border-[var(--color-border)] pb-3">
@@ -157,7 +172,7 @@ export function WorkOrderFabricPieceSheets({ workOrderId, sheets, fabricSupplyIt
                 : 'bg-white text-[var(--color-primary)] border-[var(--color-accent-blue-light)] hover:bg-[var(--color-accent-blue-pale)]'
             }`}
           >
-            {s.workOrderSupplyItem.supply.name}
+            Tela: {s.workOrderSupplyItem.supply.name}
           </button>
         ))}
         {pocketFabrics.length > 0 && (
@@ -213,11 +228,13 @@ function SheetEditor({ workOrderId, sheet, onPocketToggle, invalidate }: EditorP
 
   const [pieces, setPieces] = useState<FabricPieceSheetPiece[]>(sheet.pieces);
   const [rolls, setRolls] = useState<FabricPieceSheetRoll[]>(sheet.rolls);
+  const [spikes, setSpikes] = useState<FabricPieceSheetSpike[]>(sheet.spikes ?? []);
 
   useEffect(() => {
     setPieces(sheet.pieces);
     setRolls(sheet.rolls);
-  }, [sheet.id, sheet.pieces, sheet.rolls]);
+    setSpikes(sheet.spikes ?? []);
+  }, [sheet.id, sheet.pieces, sheet.rolls, sheet.spikes]);
 
   const totalMeters = useMemo(
     () => rolls.reduce((sum, r) => sum + (parseFloat(String(r.meters)) || 0), 0),
@@ -263,6 +280,10 @@ function SheetEditor({ workOrderId, sheet, onPocketToggle, invalidate }: EditorP
         quantity: 1,
         isPair: false,
         imageUrl: null,
+        cutInstructions: '',
+        groupInstructions: '',
+        garmentsYield: null,
+        fabricUsage: null,
       },
     ]);
   };
@@ -280,6 +301,13 @@ function SheetEditor({ workOrderId, sheet, onPocketToggle, invalidate }: EditorP
         isPair: piece.isPair,
         imageUrl: piece.imageUrl ?? undefined,
         sortOrder: piece.sortOrder,
+        cutInstructions: piece.cutInstructions ?? undefined,
+        groupInstructions: piece.groupInstructions ?? undefined,
+        garmentsYield: piece.garmentsYield ?? undefined,
+        fabricUsage:
+          piece.fabricUsage === null || piece.fabricUsage === undefined || piece.fabricUsage === ''
+            ? undefined
+            : Number(piece.fabricUsage),
       };
       if (piece.id.startsWith('temp-')) {
         const { data } = await api.post(`${baseUrl}/pieces`, payload);
@@ -360,10 +388,248 @@ function SheetEditor({ workOrderId, sheet, onPocketToggle, invalidate }: EditorP
     onSuccess: invalidate,
   });
 
+  // ── Espigas (parte del diseño del trazo) ──
+  const addSpike = () => {
+    setSpikes((prev) => [
+      ...prev,
+      {
+        id: `temp-${Date.now()}`,
+        sortOrder: prev.length,
+        name: '',
+        lengthCm: '',
+        widthCm: '',
+        quantity: null,
+        notes: '',
+      },
+    ]);
+  };
+
+  const updateSpikeLocal = (idx: number, patch: Partial<FabricPieceSheetSpike>) => {
+    setSpikes((prev) => prev.map((s, i) => (i === idx ? { ...s, ...patch } : s)));
+  };
+
+  const removeSpikeLocal = (idx: number) => {
+    setSpikes((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const saveSpikesMutation = useMutation({
+    mutationFn: async () => {
+      const items = spikes
+        .filter((s) => s.name.trim())
+        .map((s, idx) => ({
+          name: s.name,
+          lengthCm:
+            s.lengthCm === null || s.lengthCm === undefined || s.lengthCm === ''
+              ? undefined
+              : Number(s.lengthCm),
+          widthCm:
+            s.widthCm === null || s.widthCm === undefined || s.widthCm === ''
+              ? undefined
+              : Number(s.widthCm),
+          quantity: s.quantity ?? undefined,
+          notes: s.notes ?? undefined,
+          sortOrder: idx,
+        }));
+      await api.put(`${baseUrl}/spikes`, { items });
+    },
+    onSuccess: invalidate,
+  });
+
   const isPocket = sheet.workOrderSupplyItem.fabricUsage === 'pocket';
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div className="space-y-6">
+      {/* ── Diseño del trazo (cabecera + espigas) ── */}
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <div>
+            <h3 className="font-semibold text-sm">Diseño del trazo</h3>
+            <p className="text-[11px] text-[var(--color-text-secondary)]">
+              Tela: <strong>{sheet.workOrderSupplyItem.supply.name}</strong>
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            {isPocket ? (
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => onPocketToggle(sheet.workOrderSupplyItem.id, 'main')}
+              >
+                Marcar como principal
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => onPocketToggle(sheet.workOrderSupplyItem.id, 'pocket')}
+              >
+                Es tela bolsillo
+              </Button>
+            )}
+            <Button
+              size="sm"
+              onClick={() => saveHeaderMutation.mutate()}
+              disabled={saveHeaderMutation.isPending}
+            >
+              <Save size={14} className="mr-1" />
+              Guardar trazo
+            </Button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 text-sm mb-4">
+          <Field label="Fecha">
+            <input
+              type="date"
+              className="w-full border rounded px-2 py-1.5 text-sm"
+              value={header.sheetDate ? header.sheetDate.slice(0, 10) : ''}
+              onChange={(e) => setHeader((h) => ({ ...h, sheetDate: e.target.value }))}
+            />
+          </Field>
+          <Field label="Largo del trazo">
+            <input
+              type="number"
+              step="0.01"
+              className="w-full border rounded px-2 py-1.5 text-sm"
+              value={header.markerLength}
+              onChange={(e) => setHeader((h) => ({ ...h, markerLength: e.target.value }))}
+            />
+          </Field>
+          <Field label="Tallas colocadas">
+            <input
+              type="number"
+              min={0}
+              className="w-full border rounded px-2 py-1.5 text-sm"
+              value={header.sizesPlaced}
+              onChange={(e) => setHeader((h) => ({ ...h, sizesPlaced: e.target.value }))}
+            />
+          </Field>
+          <Field label="Promedio real">
+            <input
+              type="number"
+              step="0.01"
+              className="w-full border rounded px-2 py-1.5 text-sm"
+              value={header.realAverage}
+              onChange={(e) => setHeader((h) => ({ ...h, realAverage: e.target.value }))}
+            />
+          </Field>
+        </div>
+
+        <div className="border rounded-lg p-3 bg-[var(--color-accent-blue-pale)]/30">
+          <div className="flex items-center justify-between mb-2">
+            <h4 className="font-semibold text-xs uppercase tracking-wide">Espigas</h4>
+            <div className="flex items-center gap-2">
+              <Button size="sm" variant="secondary" onClick={addSpike}>
+                <Plus size={14} className="mr-1" />
+                Agregar espiga
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => saveSpikesMutation.mutate()}
+                disabled={saveSpikesMutation.isPending}
+              >
+                <Save size={14} className="mr-1" />
+                Guardar espigas
+              </Button>
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-[var(--color-text-secondary)] border-b">
+                  <th className="py-2 pr-2 w-10">#</th>
+                  <th className="py-2 pr-2">Nombre</th>
+                  <th className="py-2 pr-2 w-24 text-right">Largo (cm)</th>
+                  <th className="py-2 pr-2 w-24 text-right">Ancho (cm)</th>
+                  <th className="py-2 pr-2 w-20 text-right">Cant.</th>
+                  <th className="py-2 pr-2">Notas</th>
+                  <th className="py-2 w-10"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {spikes.length === 0 && (
+                  <tr>
+                    <td
+                      colSpan={7}
+                      className="py-4 text-center text-xs text-[var(--color-text-secondary)]"
+                    >
+                      Sin espigas registradas en el diseño del trazo.
+                    </td>
+                  </tr>
+                )}
+                {spikes.map((s, idx) => (
+                  <tr key={s.id} className="border-b last:border-0">
+                    <td className="py-1 pr-2 text-xs text-[var(--color-text-secondary)]">
+                      {idx + 1}
+                    </td>
+                    <td className="py-1 pr-2">
+                      <input
+                        type="text"
+                        className="w-full border rounded px-2 py-1 text-sm"
+                        value={s.name}
+                        placeholder="Espiga 1"
+                        onChange={(e) => updateSpikeLocal(idx, { name: e.target.value })}
+                      />
+                    </td>
+                    <td className="py-1 pr-2">
+                      <input
+                        type="number"
+                        step="0.01"
+                        min={0}
+                        className="w-full border rounded px-1 py-1 text-sm text-right"
+                        value={numStr(s.lengthCm)}
+                        onChange={(e) => updateSpikeLocal(idx, { lengthCm: e.target.value })}
+                      />
+                    </td>
+                    <td className="py-1 pr-2">
+                      <input
+                        type="number"
+                        step="0.01"
+                        min={0}
+                        className="w-full border rounded px-1 py-1 text-sm text-right"
+                        value={numStr(s.widthCm)}
+                        onChange={(e) => updateSpikeLocal(idx, { widthCm: e.target.value })}
+                      />
+                    </td>
+                    <td className="py-1 pr-2">
+                      <input
+                        type="number"
+                        min={0}
+                        className="w-full border rounded px-1 py-1 text-sm text-right"
+                        value={s.quantity ?? ''}
+                        onChange={(e) =>
+                          updateSpikeLocal(idx, {
+                            quantity: e.target.value === '' ? null : parseInt(e.target.value, 10) || 0,
+                          })
+                        }
+                      />
+                    </td>
+                    <td className="py-1 pr-2">
+                      <input
+                        type="text"
+                        className="w-full border rounded px-2 py-1 text-sm"
+                        value={s.notes ?? ''}
+                        onChange={(e) => updateSpikeLocal(idx, { notes: e.target.value })}
+                      />
+                    </td>
+                    <td className="py-1">
+                      <button
+                        type="button"
+                        onClick={() => removeSpikeLocal(idx)}
+                        className="p-1 rounded hover:bg-red-50 text-red-600"
+                        title="Quitar"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
       {/* ── Tabla de piezas ── */}
       <div>
         <div className="flex items-center justify-between mb-2">
@@ -378,19 +644,23 @@ function SheetEditor({ workOrderId, sheet, onPocketToggle, invalidate }: EditorP
             <thead>
               <tr className="text-left text-[var(--color-text-secondary)] border-b">
                 <th className="py-2 pr-2 w-10">#</th>
-                <th className="py-2 pr-2">Nombre</th>
-                <th className="py-2 pr-2 w-20 text-center">Mat.</th>
+                <th className="py-2 pr-2">Pieza</th>
+                <th className="py-2 pr-2 w-16 text-center">Mat.</th>
                 <th className="py-2 pr-2 w-16 text-center">Cant.</th>
                 <th className="py-2 pr-2 w-12 text-center">Par</th>
-                <th className="py-2 pr-2 w-28">Imagen</th>
-                <th className="py-2 w-16"></th>
+                <th className="py-2 pr-2 w-20">Imagen</th>
+                <th className="py-2 pr-2">Instrucciones de corte</th>
+                <th className="py-2 pr-2">Agrupación</th>
+                <th className="py-2 pr-2 w-20 text-right">Prendas</th>
+                <th className="py-2 pr-2 w-24 text-right">Gasto tela</th>
+                <th className="py-2 w-10"></th>
               </tr>
             </thead>
             <tbody>
               {pieces.length === 0 && (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={11}
                     className="py-6 text-center text-xs text-[var(--color-text-secondary)]"
                   >
                     Sin piezas registradas. Agregue una para empezar.
@@ -398,7 +668,7 @@ function SheetEditor({ workOrderId, sheet, onPocketToggle, invalidate }: EditorP
                 </tr>
               )}
               {pieces.map((p, idx) => (
-                <tr key={p.id} className="border-b last:border-0">
+                <tr key={p.id} className="border-b last:border-0 align-top">
                   <td className="py-1 pr-2 text-xs text-[var(--color-text-secondary)]">{idx + 1}</td>
                   <td className="py-1 pr-2">
                     <input
@@ -470,6 +740,53 @@ function SheetEditor({ workOrderId, sheet, onPocketToggle, invalidate }: EditorP
                       </label>
                     )}
                   </td>
+                  <td className="py-1 pr-2">
+                    <textarea
+                      rows={2}
+                      className="w-full border rounded px-2 py-1 text-sm"
+                      value={p.cutInstructions ?? ''}
+                      onChange={(e) => updatePieceLocal(idx, { cutInstructions: e.target.value })}
+                      onBlur={() => handlePersistPiece(idx)}
+                    />
+                  </td>
+                  <td className="py-1 pr-2">
+                    <textarea
+                      rows={2}
+                      className="w-full border rounded px-2 py-1 text-sm"
+                      value={p.groupInstructions ?? ''}
+                      onChange={(e) => updatePieceLocal(idx, { groupInstructions: e.target.value })}
+                      onBlur={() => handlePersistPiece(idx)}
+                    />
+                  </td>
+                  <td className="py-1 pr-2">
+                    <input
+                      type="number"
+                      min={0}
+                      className="w-full border rounded px-1 py-1 text-sm text-right"
+                      value={p.garmentsYield ?? ''}
+                      onChange={(e) =>
+                        updatePieceLocal(idx, {
+                          garmentsYield: e.target.value === '' ? null : parseInt(e.target.value, 10) || 0,
+                        })
+                      }
+                      onBlur={() => handlePersistPiece(idx)}
+                    />
+                  </td>
+                  <td className="py-1 pr-2">
+                    <input
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      className="w-full border rounded px-1 py-1 text-sm text-right"
+                      value={numStr(p.fabricUsage)}
+                      onChange={(e) =>
+                        updatePieceLocal(idx, {
+                          fabricUsage: e.target.value === '' ? null : e.target.value,
+                        })
+                      }
+                      onBlur={() => handlePersistPiece(idx)}
+                    />
+                  </td>
                   <td className="py-1">
                     <button
                       type="button"
@@ -487,75 +804,21 @@ function SheetEditor({ workOrderId, sheet, onPocketToggle, invalidate }: EditorP
         </div>
       </div>
 
-      {/* ── Cabecera ── */}
+      {/* ── Datos de corte (operativos) ── */}
       <div className="space-y-4">
         <div>
           <div className="flex items-center justify-between mb-2">
-            <h3 className="font-semibold text-sm">Datos de corte</h3>
-            <div className="flex items-center gap-2">
-              {isPocket ? (
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onClick={() =>
-                    onPocketToggle(sheet.workOrderSupplyItem.id, 'main')
-                  }
-                >
-                  Marcar como principal
-                </Button>
-              ) : (
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onClick={() =>
-                    onPocketToggle(sheet.workOrderSupplyItem.id, 'pocket')
-                  }
-                >
-                  Es tela bolsillo
-                </Button>
-              )}
-              <Button size="sm" onClick={() => saveHeaderMutation.mutate()} disabled={saveHeaderMutation.isPending}>
-                <Save size={14} className="mr-1" />
-                Guardar
-              </Button>
-            </div>
+            <h3 className="font-semibold text-sm">Datos operativos de corte</h3>
+            <Button
+              size="sm"
+              onClick={() => saveHeaderMutation.mutate()}
+              disabled={saveHeaderMutation.isPending}
+            >
+              <Save size={14} className="mr-1" />
+              Guardar
+            </Button>
           </div>
           <div className="grid grid-cols-2 gap-3 text-sm">
-            <Field label="Fecha">
-              <input
-                type="date"
-                className="w-full border rounded px-2 py-1.5 text-sm"
-                value={header.sheetDate ? header.sheetDate.slice(0, 10) : ''}
-                onChange={(e) => setHeader((h) => ({ ...h, sheetDate: e.target.value }))}
-              />
-            </Field>
-            <Field label="Tallas colocadas">
-              <input
-                type="number"
-                min={0}
-                className="w-full border rounded px-2 py-1.5 text-sm"
-                value={header.sizesPlaced}
-                onChange={(e) => setHeader((h) => ({ ...h, sizesPlaced: e.target.value }))}
-              />
-            </Field>
-            <Field label="Promedio real">
-              <input
-                type="number"
-                step="0.01"
-                className="w-full border rounded px-2 py-1.5 text-sm"
-                value={header.realAverage}
-                onChange={(e) => setHeader((h) => ({ ...h, realAverage: e.target.value }))}
-              />
-            </Field>
-            <Field label="Largo del trazo">
-              <input
-                type="number"
-                step="0.01"
-                className="w-full border rounded px-2 py-1.5 text-sm"
-                value={header.markerLength}
-                onChange={(e) => setHeader((h) => ({ ...h, markerLength: e.target.value }))}
-              />
-            </Field>
             <Field label="Cantidad programada">
               <input
                 type="number"

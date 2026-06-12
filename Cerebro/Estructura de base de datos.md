@@ -765,6 +765,119 @@ Solo aplica a insumos con `supplies.supply_type.code = 'fabric'`; en el resto de
 
 ---
 
+### 6j. Espigas del diseño del trazo (en ficha por tela)
+
+**Lógico:** Filas de espigas del diseño del trazo · **Físico:** `work_order_fabric_piece_sheet_spikes`
+
+Las **espigas no son un documento independiente**: son filas hijas que viven **dentro del diseño del trazo** de cada ficha por tela. Se editan junto con la cabecera del trazo (largo, tallas colocadas, promedio real…).
+
+| Columna | Tipo | Obl. | Notas |
+|---------|------|------|--------|
+| `id` | UUID | Sí | PK |
+| `piece_sheet_id` | UUID | Sí | FK → `work_order_fabric_piece_sheets` (cascade) |
+| `sort_order` | INT | Sí | Orden visual |
+| `name` | VARCHAR(128) | Sí | Identificador de la espiga (ej. `Espiga 1`) |
+| `length_cm` | NUMERIC(10,4) | No | Largo en cm |
+| `width_cm` | NUMERIC(10,4) | No | Ancho en cm |
+| `quantity` | INT | No | Cantidad de la espiga en el trazo |
+| `notes` | TEXT | No | |
+| `created_at` / `updated_at` | TIMESTAMPTZ | Sí | |
+
+**Endpoint:** se reemplaza la lista completa en una sola operación vía `PUT /work-orders/:id/fabric-piece-sheets/:sheetId/spikes` con `{ items: [...] }`.
+
+---
+
+### 6k. Planificación a nivel pieza (extensión de la tabla de piezas)
+
+Sobre `work_order_fabric_piece_sheet_pieces` se añaden los campos de planificación. Las **piezas siguen siendo filas hijas** de la ficha por tela; los campos nuevos enriquecen cada pieza con datos de corte y rendimiento.
+
+| Columna | Tipo | Obl. | Notas |
+|---------|------|------|--------|
+| `cut_instructions` | TEXT | No | Instrucciones de corte por pieza |
+| `group_instructions` | TEXT | No | Instrucciones de agrupación |
+| `garments_yield` | INT | No | Cantidad de prendas que rinde la pieza |
+| `fabric_usage` | NUMERIC(12,4) | No | Gasto de tela por pieza (m o según UoM) |
+
+---
+
+### 6l. Tabla de medidas (1:1 con la OT)
+
+**Lógico:** Tabla de medidas (medidas promedio por talla) · **Físico:** `work_order_measurement_sheets`
+
+Documento independiente, **1:1 con la OT**. Sus columnas son tallas (referidas al catálogo `sizes`) y sus filas son **puntos de medida** del catálogo (`garment_measurement_points`). Las medidas se capturan en centímetros.
+
+#### `garment_measurement_points` — catálogo (filas)
+
+| Columna | Tipo | Obl. | Notas |
+|---------|------|------|--------|
+| `id` | UUID | Sí | PK |
+| `category` | VARCHAR(64) | Sí | `General` \| `Superior` \| `Centro del cuerpo` \| `Inferior` |
+| `name` | VARCHAR(128) | Sí | Único por `(category, name)` |
+| `description` | TEXT | No | |
+| `is_optional` | BOOL | Sí | Por defecto `false` |
+| `sort_order` | INT | Sí | Orden visual |
+| `is_active` | BOOL | Sí | Por defecto `true` |
+
+**Seed inicial:** 22 puntos repartidos en las 4 categorías (Estatura; contornos de busto/pecho, bajo busto, espalda, talles, hombros, brazo, manga, muñeca; cintura, cadera, tiros, talle completo; muslo, rodilla, pantorrilla, tobillo, pierna exterior, entrepierna).
+
+#### `work_order_measurement_sheets` — cabecera
+
+| Columna | Tipo | Obl. | Notas |
+|---------|------|------|--------|
+| `id` | UUID | Sí | PK |
+| `work_order_id` | UUID | Sí | **UNIQUE**; FK → `work_orders` (cascade) |
+| `status` | VARCHAR(16) | Sí | `draft` \| `active` \| `closed` |
+| `notes` | TEXT | No | |
+| `created_at` / `updated_at` | TIMESTAMPTZ | Sí | |
+| `created_by_user_id` | UUID | Sí | FK → `users` |
+
+#### `work_order_measurement_sheet_columns` — tallas (columnas)
+
+| Columna | Tipo | Obl. | Notas |
+|---------|------|------|--------|
+| `id` | UUID | Sí | PK |
+| `sheet_id` | UUID | Sí | FK → `work_order_measurement_sheets` (cascade) |
+| `size_id` | UUID | Sí | FK → `sizes` |
+| `sort_order` | INT | Sí | Orden de la talla |
+
+Único por `(sheet_id, size_id)`.
+
+#### `work_order_measurement_sheet_cells` — valores (celdas)
+
+| Columna | Tipo | Obl. | Notas |
+|---------|------|------|--------|
+| `id` | UUID | Sí | PK |
+| `sheet_id` | UUID | Sí | FK → `work_order_measurement_sheets` (cascade) |
+| `garment_measurement_point_id` | UUID | Sí | FK → `garment_measurement_points` (cascade) |
+| `size_id` | UUID | Sí | FK → `sizes` |
+| `value_cm` | NUMERIC(8,2) | No | Valor en centímetros; `NULL` = sin completar |
+
+Único por `(sheet_id, garment_measurement_point_id, size_id)`.
+
+**Reglas de negocio:**
+
+- Se crea desde **Instrucciones de diseño** con `POST /work-orders/:id/measurement-sheet`; se rechaza con `409 Conflict` si ya existe.
+- Al crear, las **columnas se copian** desde la curva de tallas de la OT (`work_order_size_curve_items`). Si la curva está vacía, se debe enviar `sizeIds` explícitos.
+- Al crear, se generan todas las **celdas** del producto cartesiano `puntos de medida × tallas` con `value_cm = NULL`.
+- Los valores se guardan con `PUT /work-orders/:id/measurement-sheet/cells` (batch upsert).
+
+---
+
+### 6m. Anexos del diseño (esquema JSON de `design_attachments_json`)
+
+El array `work_orders.design_attachments_json` almacena los archivos anexados a las instrucciones de diseño. Esquema de cada elemento:
+
+| Campo | Tipo | Obl. | Notas |
+|-------|------|------|--------|
+| `id` | string | Sí | UUID generado en el cliente |
+| `fileName` | string | Sí | Nombre original del archivo |
+| `uploadedAt` | string ISO 8601 | Sí | Fecha de subida |
+| `dataUrl` | string | No | Contenido embebido (data URL) |
+
+Validado por `DesignAttachmentDto` en el backend (`class-validator`). La UI muestra **nombre + fecha de subida** por cada anexo; los registros legacy sin `uploadedAt` se renderizan con `—`.
+
+---
+
 ### 7. Unidad de medida
 
 **Lógico:** Unidad de medida · **Físico:** `units_of_measure`
@@ -938,3 +1051,4 @@ erDiagram
 | 0.9 | 2026-05-18 | **Simplificación:** eliminar `developments` y `production_orders`; OT como entidad principal con campos de planificación; `garment_references` dual-source (`lexi_catalog` / `work_order`); curva de tallas → `work_order_size_curve_items` |
 | 1.0 | 2026-05-18 | **Catálogo manual:** `brands.consecutivo` (100–999); `garment_references.code`, `reference_type`, `serie`, `reference_sequence`, `is_active`; sin Lexi/webhook; CRUD + preview de ID |
 | 1.1 | 2026-05-19 | **Ficha de piezas por tela** en OT: `work_order_fabric_piece_sheets`, `work_order_fabric_piece_sheet_pieces` (con imagen), `work_order_fabric_piece_sheet_rolls`; `work_order_supply_items.fabric_usage` para distinguir tela principal de tela bolsillo |
+| 1.2 | 2026-06-12 | **Documentos de planificación de diseño** en Instrucciones de diseño: **Tabla de medidas** 1:1 (`garment_measurement_points`, `work_order_measurement_sheets` + columns + cells); **Fichas de trazo y corte** por tela (renombre operativo de `work_order_fabric_piece_sheets`) con **espigas** del diseño del trazo (`work_order_fabric_piece_sheet_spikes`) y campos de planificación por pieza (`cut_instructions`, `group_instructions`, `garments_yield`, `fabric_usage`); esquema documentado para `design_attachments_json` con `uploadedAt` |

@@ -8,6 +8,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { UpdateFabricPieceSheetDto } from './dto/update-fabric-piece-sheet.dto';
 import { UpsertPieceDto } from './dto/upsert-piece.dto';
 import { ReplaceRollsDto } from './dto/replace-rolls.dto';
+import { ReplaceSpikesDto } from './dto/replace-spikes.dto';
 
 const FABRIC_SUPPLY_TYPE_CODE = 'fabric';
 
@@ -34,7 +35,7 @@ export class FabricPieceSheetsService {
             },
           },
         },
-        _count: { select: { pieces: true, rolls: true } },
+        _count: { select: { pieces: true, rolls: true, spikes: true } },
       },
     });
   }
@@ -59,6 +60,7 @@ export class FabricPieceSheetsService {
         },
         pieces: { orderBy: { sortOrder: 'asc' } },
         rolls: { orderBy: { sortOrder: 'asc' } },
+        spikes: { orderBy: { sortOrder: 'asc' } },
       },
     });
     if (!sheet) throw new NotFoundException('Ficha de piezas no encontrada');
@@ -100,6 +102,7 @@ export class FabricPieceSheetsService {
         workOrderSupplyItem: { include: { supply: true } },
         pieces: true,
         rolls: true,
+        spikes: true,
       },
     });
   }
@@ -117,6 +120,7 @@ export class FabricPieceSheetsService {
         workOrderSupplyItem: { include: { supply: true } },
         pieces: { orderBy: { sortOrder: 'asc' } },
         rolls: { orderBy: { sortOrder: 'asc' } },
+        spikes: { orderBy: { sortOrder: 'asc' } },
       },
     });
   }
@@ -137,6 +141,10 @@ export class FabricPieceSheetsService {
         isPair: dto.isPair ?? false,
         imageUrl: dto.imageUrl,
         sortOrder: dto.sortOrder ?? count,
+        cutInstructions: dto.cutInstructions,
+        groupInstructions: dto.groupInstructions,
+        garmentsYield: dto.garmentsYield,
+        fabricUsage: dto.fabricUsage,
       },
     });
   }
@@ -161,6 +169,12 @@ export class FabricPieceSheetsService {
         isPair: dto.isPair ?? piece.isPair,
         imageUrl: dto.imageUrl !== undefined ? dto.imageUrl : piece.imageUrl,
         sortOrder: dto.sortOrder ?? piece.sortOrder,
+        cutInstructions:
+          dto.cutInstructions !== undefined ? dto.cutInstructions : piece.cutInstructions,
+        groupInstructions:
+          dto.groupInstructions !== undefined ? dto.groupInstructions : piece.groupInstructions,
+        garmentsYield: dto.garmentsYield !== undefined ? dto.garmentsYield : piece.garmentsYield,
+        fabricUsage: dto.fabricUsage !== undefined ? dto.fabricUsage : piece.fabricUsage,
       },
     });
   }
@@ -215,6 +229,34 @@ export class FabricPieceSheetsService {
         data: { totalMeters },
       });
       return tx.workOrderFabricPieceSheetRoll.findMany({
+        where: { pieceSheetId: sheetId },
+        orderBy: { sortOrder: 'asc' },
+      });
+    });
+  }
+
+  // ── Espigas del diseño del trazo ──
+
+  async replaceSpikes(workOrderId: string, sheetId: string, dto: ReplaceSpikesDto) {
+    await this.findOne(workOrderId, sheetId);
+
+    return this.prisma.$transaction(async (tx) => {
+      await tx.workOrderFabricPieceSheetSpike.deleteMany({ where: { pieceSheetId: sheetId } });
+      if (dto.items.length > 0) {
+        await tx.workOrderFabricPieceSheetSpike.createMany({
+          data: dto.items.map((s, idx) => ({
+            pieceSheetId: sheetId,
+            name: s.name,
+            lengthCm: s.lengthCm,
+            widthCm: s.widthCm,
+            quantity: s.quantity,
+            notes: s.notes,
+            sortOrder: s.sortOrder ?? idx,
+            updatedAt: new Date(),
+          })),
+        });
+      }
+      return tx.workOrderFabricPieceSheetSpike.findMany({
         where: { pieceSheetId: sheetId },
         orderBy: { sortOrder: 'asc' },
       });
